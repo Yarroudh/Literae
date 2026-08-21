@@ -45,7 +45,7 @@ def merge_search_plan(
     values: dict[str, object] = {}
     for field_name in ResearchFilters.model_fields:
         explicit_value = getattr(explicit_filters, field_name)
-        extracted_value = getattr(extracted, field_name)
+        extracted_value = getattr(extracted, field_name, None)
         values[field_name] = explicit_value if explicit_value is not None else extracted_value
 
     query = extracted.query.strip()

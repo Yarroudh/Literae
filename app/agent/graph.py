@@ -309,8 +309,9 @@ class LangGraphResearchWorkflow:
         return _publication_state(results)
 
     def _select_evidence(self, state: ResearchState) -> dict[str, object]:
-        # Keep prompts bounded while preserving enough material for comparisons.
-        return {"selected_results": state.get("results", [])[:12]}
+        # Retrieval and display can be broader, but generation always uses the ten
+        # highest-ranked works from the current OpenAlex page to bound model context.
+        return {"selected_results": state.get("results", [])[:10]}
 
     async def _execute_research_action(self, state: ResearchState) -> dict[str, object]:
         if state.get("validation_issue"):
@@ -414,6 +415,7 @@ class LangGraphResearchWorkflow:
                 ]
         elif state.get("results"):
             suggestions = [
+                "Show me more papers",
                 "Give me BibTeX code for these papers",
                 "Give me RIS code for these papers",
                 "Draft a concise state-of-the-art synthesis from these papers",

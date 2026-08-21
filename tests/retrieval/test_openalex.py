@@ -104,6 +104,27 @@ async def test_search_translates_filters_and_normalizes_works() -> None:
 
 
 @pytest.mark.asyncio
+async def test_search_uses_request_specific_results_limit() -> None:
+    captured_request: httpx.Request | None = None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_request
+        captured_request = request
+        return httpx.Response(200, json={"results": [openalex_work()]})
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openalex.org",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        await OpenAlexClient(client=http_client, results_limit=10).search(
+            "urban health", ResearchFilters(resultsLimit=50)
+        )
+
+    assert captured_request is not None
+    assert captured_request.url.params["per-page"] == "50"
+
+
+@pytest.mark.asyncio
 async def test_search_skips_incomplete_works_and_handles_missing_optional_fields() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(

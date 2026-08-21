@@ -9,6 +9,7 @@ export type ResearchFilters = {
   institution: string;
   source: string;
   sort: string;
+  resultsLimit: string;
 };
 
 export type ResearchResult = {

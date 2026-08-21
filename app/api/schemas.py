@@ -18,6 +18,7 @@ class ResearchFilters(BaseModel):
     institution: str | None = Field(default=None, max_length=200)
     source: str | None = Field(default=None, max_length=200)
     sort: Literal["relevance", "newest", "oldest", "cited"] = "relevance"
+    results_limit: int | None = Field(default=None, alias="resultsLimit", ge=10, le=100)
 
 
 class ChatRequest(BaseModel):

@@ -139,6 +139,7 @@ function toApiFilters(filters: ResearchFilters) {
     ...(filters.institution.trim() && { institution: filters.institution.trim() }),
     ...(filters.source.trim() && { source: filters.source.trim() }),
     sort: filters.sort,
+    resultsLimit: Number(filters.resultsLimit),
   };
 }
 

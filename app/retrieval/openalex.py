@@ -288,7 +288,7 @@ class OpenAlexClient:
         page: int,
     ) -> dict[str, str | int]:
         params: dict[str, str | int] = {
-            "per-page": self._results_limit,
+            "per-page": filters.results_limit or self._results_limit,
             "page": max(page, 1),
         }
         if query.strip() and not _is_author_catalog_request(query, filters):
