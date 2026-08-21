@@ -1,6 +1,6 @@
 # Literae
 
-<img src="frontend/public/logo.png" alt="Literae logo" width="150px">
+<img src="frontend/public/logo.png" alt="Literae logo" width="80px">
 
 Literae is a conversational academic research assistant for discovering publications, exploring
 researchers, analysing groups of papers, and producing reusable references. It combines OpenAlex,
