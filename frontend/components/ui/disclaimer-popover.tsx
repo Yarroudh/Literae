@@ -29,7 +29,7 @@ export function DisclaimerPopover() {
         <ExclamationIcon className="size-[18px]" />
       </button>
       {open && (
-        <div role="dialog" aria-label="Research disclaimer" className="absolute right-0 top-12 z-30 w-[min(82vw,320px)] rounded-[14px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_18px_50px_var(--shadow)]">
+        <div role="dialog" aria-label="Research disclaimer" className="fixed inset-x-4 top-[76px] z-50 rounded-[14px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_18px_50px_var(--shadow)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-80">
           <div className="flex gap-3">
             <ExclamationIcon className="mt-0.5 size-5 shrink-0 text-[var(--accent)]" />
             <p className="text-sm leading-6 text-[var(--ink-soft)]">Literae helps you discover relevant research, but results and publication details may be incomplete or inaccurate. Review the original source before citing or relying on any finding.</p>
