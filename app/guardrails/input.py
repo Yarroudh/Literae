@@ -6,9 +6,12 @@ class InputGuardrailError(ValueError):
     """Raised when a user request should not enter the research workflow."""
 
 
+MAX_RESEARCH_REQUEST_LENGTH = 4_000
+
+
 @dataclass(frozen=True)
 class InputGuard:
-    max_length: int = 4_000
+    max_length: int = MAX_RESEARCH_REQUEST_LENGTH
 
     def validate(self, message: str) -> str:
         normalized = _normalize_message(message)
@@ -18,7 +21,7 @@ class InputGuard:
             raise InputGuardrailError(
                 f"Keep the request under {self.max_length:,} characters."
             )
-        if _contains_prompt_injection(normalized):
+        if _contains_explicit_instruction_override(normalized):
             raise InputGuardrailError(
                 "This request cannot be processed. Ask Literae directly about the research you need."
             )
@@ -34,13 +37,15 @@ def _normalize_message(message: str) -> str:
     return cleaned.strip()
 
 
-def _contains_prompt_injection(message: str) -> bool:
+def _contains_explicit_instruction_override(message: str) -> bool:
+    """Block only explicit imperative attempts to replace governing instructions."""
     normalized = " ".join(message.casefold().split())
-    patterns = (
-        r"\bignore\b.{0,40}\b(previous|prior|above|system|developer)\b.{0,20}\b(instructions?|prompt|messages?)\b",
-        r"\b(reveal|show|print|repeat|dump|expose)\b.{0,35}\b(system|developer|hidden|internal)\b.{0,20}\b(prompt|instructions?|messages?)\b",
-        r"\b(?:act|pretend) as\b.{0,40}\b(?:without|no) (?:rules|restrictions|guardrails)\b",
-        r"\b(?:disable|bypass|override|circumvent)\b.{0,25}\b(?:safety|guardrails|filters?|instructions?)\b",
-        r"\bdeveloper mode\b|\bjailbreak\b",
+    return bool(
+        re.match(
+            r"^(?:please\s+)?(?:forget|ignore|disregard|discard)\s+"
+            r"(?:(?:all|any|the)\s+)?"
+            r"(?:(?:previous|prior|earlier|above|system|developer)\s+)?"
+            r"(?:instructions?|rules?|prompts?)\b",
+            normalized,
+        )
     )
-    return any(re.search(pattern, normalized) for pattern in patterns)

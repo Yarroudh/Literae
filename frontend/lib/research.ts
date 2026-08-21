@@ -1,5 +1,7 @@
 import type { ResearchFilters } from "@/types/research";
 
+export const MAX_RESEARCH_REQUEST_LENGTH = 4_000;
+
 export const INITIAL_FILTERS: ResearchFilters = {
   query: "",
   fromYear: "",

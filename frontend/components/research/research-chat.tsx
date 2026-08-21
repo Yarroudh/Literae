@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Header } from "@/components/chat/header";
 import { LoaderIcon, RefreshIcon, SendIcon } from "@/components/ui/icons";
 import { ChatApiError, requestResearch } from "@/lib/api-chat";
-import { INITIAL_FILTERS, sampleResearchTopics } from "@/lib/research";
+import { INITIAL_FILTERS, MAX_RESEARCH_REQUEST_LENGTH, sampleResearchTopics } from "@/lib/research";
 import type { AuthorResult, ResearchFilters, ResearchResult } from "@/types/research";
 import { AnswerMarkdown } from "./answer-markdown";
 import { AuthorCard } from "./author-card";
@@ -170,7 +170,7 @@ export function ResearchChat() {
         <form className="mx-auto w-full max-w-4xl px-4 sm:px-6" onSubmit={(event) => { event.preventDefault(); send(); }}>
           <div className="flex items-end gap-2 rounded-[15px] border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[0_10px_30px_var(--shadow)] focus-within:border-[var(--accent)]">
             <label htmlFor="research-request" className="sr-only">Ask Literae a question</label>
-            <textarea id="research-request" rows={1} value={draft} disabled={isLoading} placeholder="Ask Literae a question" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} className="block max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 outline-none placeholder:text-[var(--muted)] disabled:opacity-60" />
+            <textarea id="research-request" rows={1} value={draft} maxLength={MAX_RESEARCH_REQUEST_LENGTH} disabled={isLoading} placeholder="Ask Literae a question" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} className="block max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 outline-none placeholder:text-[var(--muted)] disabled:opacity-60" />
             <div className="flex shrink-0 items-center gap-1.5 pb-0.5">
               <FilterPopover filters={filters} onChange={updateFilter} onReset={resetFilters} />
               <button type="submit" disabled={!draft.trim() || isLoading} className="grid size-9 place-items-center rounded-[9px] bg-[var(--accent)] text-white transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50" aria-label={isLoading ? "Finding research" : "Send message"} title={isLoading ? "Finding research" : "Send message"}>

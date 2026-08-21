@@ -54,6 +54,12 @@ export async function requestResearch(
     });
 
     if (!response.ok) {
+      if (response.status === 400) {
+        const body: unknown = await response.json();
+        if (isErrorDetail(body)) {
+          throw new ChatApiError("server", body.detail, response.status);
+        }
+      }
       throw new ChatApiError("server", "The research service could not complete this request.", response.status);
     }
 
@@ -71,6 +77,15 @@ export async function requestResearch(
   } finally {
     globalThis.clearTimeout(timeout);
   }
+}
+
+function isErrorDetail(value: unknown): value is { detail: string } {
+  return Boolean(
+    value
+    && typeof value === "object"
+    && "detail" in value
+    && typeof value.detail === "string",
+  );
 }
 
 function toApiFilters(filters: ResearchFilters) {

@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
+from app.guardrails.input import MAX_RESEARCH_REQUEST_LENGTH
+
 
 class ResearchFilters(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -20,7 +22,7 @@ class ResearchFilters(BaseModel):
 class ChatRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    message: str = Field(min_length=1, max_length=4_000)
+    message: str = Field(min_length=1, max_length=MAX_RESEARCH_REQUEST_LENGTH)
     filters: ResearchFilters = Field(default_factory=ResearchFilters)
     conversation_id: str | None = Field(default=None, alias="conversationId", max_length=100)
 

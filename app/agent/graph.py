@@ -142,7 +142,9 @@ class LangGraphResearchWorkflow:
             _is_current_results_request(message) or _is_revision_request(message) or plan.intent in reusable_intents)
         wants_authors = plan.intent == "author_overview" or _is_author_profile_request(message)
         reuses_current_authors = bool(state.get("authors")) and not plan.authors and not plan.author
-        if wants_authors:
+        if plan.intent == "unsupported":
+            route = "recover"
+        elif wants_authors:
             route = "authors"
         elif should_reuse and not _is_more_results_request(message):
             route = "reuse"
@@ -156,6 +158,8 @@ class LangGraphResearchWorkflow:
 
     def _next_step(self, state: ResearchState) -> Literal["search", "authors", "reuse", "recover"]:
         if state.get("validation_issue"):
+            return "recover"
+        if state["route"] == "recover":
             return "recover"
         if state["route"] == "authors":
             return "authors"
@@ -231,6 +235,16 @@ class LangGraphResearchWorkflow:
         issue = state.get("validation_issue")
         if issue:
             return {"answer": issue, "show_results": False, "show_authors": False}
+        if state["search_plan"].intent == "unsupported":
+            return {
+                "answer": (
+                    "Literae is focused on academic research. I can help you find publications, "
+                    "explore researchers, compare studies, format references, or work with your "
+                    "current sources."
+                ),
+                "show_results": False,
+                "show_authors": False,
+            }
         if state.get("route") == "authors":
             answer = "I couldn't identify a matching researcher. Try adding an affiliation or ORCID."
         else:
@@ -238,7 +252,7 @@ class LangGraphResearchWorkflow:
         return {"answer": answer}
 
     def _generate_followups(self, state: ResearchState) -> dict[str, object]:
-        if state.get("validation_issue"):
+        if state.get("validation_issue") or state["search_plan"].intent == "unsupported":
             return {"suggestions": []}
         if state.get("context_type") == "authors" and state.get("authors"):
             names = [str(author.get("name", "")) for author in state["authors"] if author.get("name")]

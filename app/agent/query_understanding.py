@@ -24,6 +24,7 @@ class SearchPlan(BaseModel):
         "result_analysis",
         "author_overview",
         "more_results",
+        "unsupported",
     ] = "topic_search"
 
 
