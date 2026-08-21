@@ -107,32 +107,12 @@ runtime yet. Their planned role is described in the **Next** section.
 | Guardrails | Reject explicit instruction overrides and verify generated citations and exports |
 | Docker Compose | Builds and runs the frontend, backend, and database together |
 
-### High-level request flow
+### Request flow
 
-```text
-User message
-    ↓
-FastAPI input validation and deterministic guards
-    ↓
-DeepSeek structured intent interpretation
-    ↓
-LangGraph context resolution and routing
-    ├── reuse current papers
-    ├── MCP publication search
-    ├── MCP author search
-    ├── MCP author works
-    └── MCP work relationship tools
-             ↓
-          OpenAlex
-    ↓
-Grounded answer or deterministic reference export
-    ↓
-Output integrity checks
-    ↓
-PostgreSQL history persistence
-    ↓
-Answer, cards, and contextual follow-up suggestions
-```
+The following diagram shows the flow of a research request through the system.
+
+<img src="frontend/public/flow.png" width="180px" alt="High-level request flow">
+
 
 ---
 
