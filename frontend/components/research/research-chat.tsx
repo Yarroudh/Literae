@@ -136,7 +136,7 @@ export function ResearchChat() {
               <div key={turn.id} className="space-y-6">
                 <div className="flex justify-end"><div className="max-w-[85%] rounded-xl rounded-tr-sm bg-[var(--ink)] px-4 py-3 text-sm leading-6 text-[var(--surface)]">{turn.query}</div></div>
                 <article className="flex gap-3 sm:gap-4">
-                  <div className="mt-1 hidden size-9 shrink-0 place-items-center rounded-[10px] bg-[var(--accent-soft)] sm:grid"><Image src="/logo.png" alt="" width={24} height={24} /></div>
+                  <div className="mt-1 hidden size-9 shrink-0 place-items-center rounded-[10px] bg-[var(--accent-soft)] sm:grid"><Image src="/logo.png?v=3" alt="" width={24} height={24} unoptimized /></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">Literae</p>
                     <AnswerMarkdown>{turn.answer}</AnswerMarkdown>

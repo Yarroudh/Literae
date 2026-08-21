@@ -5,7 +5,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Literae",
   description: "Search and reason over open research data.",
-  icons: { icon: "/logo.png", shortcut: "/logo.png", apple: "/logo.png" },
+  icons: {
+    icon: "/logo.png?v=3",
+    shortcut: "/logo.png?v=3",
+    apple: "/logo.png?v=3",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

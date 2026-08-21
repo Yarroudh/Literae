@@ -10,7 +10,7 @@ export function Header({ canReset, onReset }: HeaderProps) {
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[color:var(--topbar)] backdrop-blur">
       <div className="mx-auto flex h-[68px] w-full max-w-4xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <Image src="/logo.png" alt="" width={32} height={32} priority />
+          <Image src="/logo.png?v=3" alt="" width={32} height={32} priority unoptimized />
           <strong className="text-[17px] tracking-[-0.02em]">Literae</strong>
         </div>
         <div className="flex items-center gap-2">
