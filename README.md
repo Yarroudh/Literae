@@ -111,7 +111,7 @@ runtime yet. Their planned role is described in the **Next** section.
 
 The following diagram shows the flow of a research request through the system.
 
-<img src="frontend/public/flow.png" width="180px" alt="High-level request flow">
+<img src="frontend/public/flow.png" width="700px" alt="High-level request flow">
 
 
 ---
