@@ -1,21 +1,6 @@
 # Literae architecture
 
-```text
-Chat UI
-  -> FastAPI
-  -> input guardrails
-  -> PostgreSQL conversation context
-  -> LangGraph research workflow
-       -> query understanding and intent routing
-       -> MCP research client
-            -> Literae MCP research server
-                 -> retry and short-lived response cache
-                 -> OpenAlex research tools
-       -> grounded answer generation
-       -> output guardrails
-  -> answer, publication cards, author cards, and follow-ups
-  -> PostgreSQL turn history
-```
+<img src="frontend/public/architecture.png" width="700px" alt="Literae architecture" />
 
 ## MCP research tools
 
