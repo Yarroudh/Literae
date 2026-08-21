@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 from typing import Literal, Protocol
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -22,6 +23,7 @@ class ResearchWorkflow(Protocol):
         conversation_id: str,
         message: str,
         filters: ResearchFilters,
+        context: Mapping[str, object] | None = None,
     ) -> tuple[
         str, list[ResearchResult], bool, list[AuthorResult], bool, str | None, list[str]
     ]: ...
@@ -120,14 +122,25 @@ class LangGraphResearchWorkflow:
         conversation_id: str,
         message: str,
         filters: ResearchFilters,
+        context: Mapping[str, object] | None = None,
     ) -> tuple[str, list[ResearchResult], bool, list[AuthorResult], bool, str | None, list[str]]:
         with trace_span(
             "literae_research_request",
             input_data={"conversation_id": conversation_id, "message": message},
             session_id=conversation_id,
         ):
+            input_state: dict[str, object] = {"message": message, "explicit_filters": filters}
+            if context:
+                input_state.update(
+                    {
+                        "results": context.get("results", []),
+                        "authors": context.get("authors", []),
+                        "answer": context.get("answer", ""),
+                        "context_type": context.get("contextType"),
+                    }
+                )
             state = await self._graph.ainvoke(
-                {"message": message, "explicit_filters": filters},
+                input_state,
                 {"configurable": {"thread_id": conversation_id}},
             )
         results = [ResearchResult.model_validate(result) for result in state.get("results", [])]

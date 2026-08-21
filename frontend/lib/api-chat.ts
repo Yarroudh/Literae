@@ -1,6 +1,6 @@
 import type { AuthorResult, ResearchFilters, ResearchResult } from "@/types/research";
 
-type ChatResponse = {
+export type ChatResponse = {
   conversationId: string;
   answer: string;
   results: ResearchResult[];
@@ -9,6 +9,17 @@ type ChatResponse = {
   showAuthors?: boolean;
   contextType?: "papers" | "authors" | null;
   suggestions?: string[];
+};
+
+export type ConversationSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConversationHistory = ConversationSummary & {
+  turns: Array<Omit<ChatResponse, "conversationId"> & { id: string; query: string; createdAt: string }>;
 };
 
 type RequestOptions = {
@@ -77,6 +88,35 @@ export async function requestResearch(
   } finally {
     globalThis.clearTimeout(timeout);
   }
+}
+
+export async function listConversations(options: RequestOptions = {}): Promise<ConversationSummary[]> {
+  const data = await historyRequest("/conversations", options);
+  if (!Array.isArray(data)) throw new ChatApiError("invalid-response", "Conversation history is unavailable.");
+  return data as ConversationSummary[];
+}
+
+export async function getConversation(
+  conversationId: string,
+  options: RequestOptions = {},
+): Promise<ConversationHistory> {
+  return await historyRequest(`/conversations/${encodeURIComponent(conversationId)}`, options) as ConversationHistory;
+}
+
+export async function deleteConversation(
+  conversationId: string,
+  options: RequestOptions = {},
+): Promise<void> {
+  await historyRequest(`/conversations/${encodeURIComponent(conversationId)}`, options, "DELETE");
+}
+
+async function historyRequest(path: string, options: RequestOptions, method = "GET"): Promise<unknown> {
+  const fetcher = options.fetcher ?? fetch;
+  const baseUrl = (options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+  const response = await fetcher(`${baseUrl}${path}`, { method });
+  if (!response.ok) throw new ChatApiError("server", "Conversation history could not be loaded.", response.status);
+  if (response.status === 204) return undefined;
+  return await response.json();
 }
 
 function isErrorDetail(value: unknown): value is { detail: string } {

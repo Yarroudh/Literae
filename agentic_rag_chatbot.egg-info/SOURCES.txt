@@ -26,6 +26,8 @@ app/debugging/laminar.py
 app/guardrails/__init__.py
 app/guardrails/input.py
 app/guardrails/output.py
+app/history/__init__.py
+app/history/repository.py
 app/ingestion/__init__.py
 app/ingestion/loader.py
 app/ingestion/pipeline.py

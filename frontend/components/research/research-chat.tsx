@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Header } from "@/components/chat/header";
 import { LoaderIcon, RefreshIcon, SendIcon } from "@/components/ui/icons";
-import { ChatApiError, requestResearch } from "@/lib/api-chat";
+import { ChatApiError, getConversation, requestResearch } from "@/lib/api-chat";
 import { INITIAL_FILTERS, MAX_RESEARCH_REQUEST_LENGTH, sampleResearchTopics } from "@/lib/research";
 import type { AuthorResult, ResearchFilters, ResearchResult } from "@/types/research";
 import { AnswerMarkdown } from "./answer-markdown";
@@ -106,9 +106,33 @@ export function ResearchChat() {
     setSuggestedTopics(sampleResearchTopics());
   }
 
+  async function openHistory(id: string) {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const conversation = await getConversation(id);
+      setConversationId(conversation.id);
+      setTurns(conversation.turns.map((turn) => ({
+        id: turn.id,
+        query: turn.query,
+        answer: turn.answer,
+        results: turn.results,
+        showResults: turn.showResults ?? true,
+        authors: turn.authors,
+        showAuthors: turn.showAuthors ?? false,
+        contextType: turn.contextType ?? null,
+        suggestions: turn.suggestions ?? [],
+      })));
+    } catch {
+      // Keep the current chat intact when a saved conversation cannot be loaded.
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--background)] text-[var(--ink)]">
-      <Header canReset={turns.length > 0 && !isLoading} onReset={reset} />
+      <Header canReset={turns.length > 0 && !isLoading} onReset={reset} onSelectHistory={(id) => void openHistory(id)} />
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 sm:px-6">
         {turns.length === 0 && !isLoading ? (
           <section className="flex flex-1 flex-col justify-center py-12">

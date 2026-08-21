@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     lmnr_base_url: str | None = None
     laminar_force_http: bool = True
     laminar_disable_batch: bool = True
+    database_url: SecretStr | None = None
+    history_enabled: bool = True
+    openalex_cache_ttl_seconds: int = Field(default=300, ge=0, le=86_400)
+    service_retry_attempts: int = Field(default=3, ge=1, le=5)
 
     model_config = SettingsConfigDict(
         env_file=".env",

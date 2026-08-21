@@ -4,14 +4,17 @@
 Chat UI
   -> FastAPI
   -> input guardrails
+  -> PostgreSQL conversation context
   -> LangGraph research workflow
        -> query understanding and intent routing
        -> MCP research client
             -> Literae MCP research server
+                 -> retry and short-lived response cache
                  -> OpenAlex research tools
        -> grounded answer generation
        -> output guardrails
   -> answer, publication cards, author cards, and follow-ups
+  -> PostgreSQL turn history
 ```
 
 ## MCP research tools
@@ -34,3 +37,13 @@ OpenAlex remains the data provider behind these tools. LangGraph selects `get_au
 author-publications intent, `search_authors` for researcher profiles, and `search_publications` for
 topic discovery. Follow-up transformations reuse the conversation's current publications without
 performing another search.
+
+## Persistence and resilience
+
+PostgreSQL stores conversations and complete turn payloads so that the API can restore the latest
+research context after a restart. The history repository is isolated behind an interface and can be
+disabled for ephemeral deployments.
+
+Transient OpenAlex failures are retried with exponential backoff. Successful retrieval responses
+are cached in memory for a short configurable period, reducing repeated upstream requests within an
+API process. This cache is intentionally disposable; a shared Redis cache is a future scaling step.

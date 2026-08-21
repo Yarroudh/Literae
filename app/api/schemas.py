@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -75,3 +76,31 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     name: str
     version: str
+
+
+class HistoryTurn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    id: str
+    query: str
+    answer: str
+    results: list[ResearchResult] = Field(default_factory=list)
+    show_results: bool = Field(default=True, alias="showResults")
+    authors: list[AuthorResult] = Field(default_factory=list)
+    show_authors: bool = Field(default=False, alias="showAuthors")
+    context_type: Literal["papers", "authors"] | None = Field(default=None, alias="contextType")
+    suggestions: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(alias="createdAt")
+
+
+class ConversationSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    id: str
+    title: str
+    created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
+
+
+class ConversationHistory(ConversationSummary):
+    turns: list[HistoryTurn] = Field(default_factory=list)

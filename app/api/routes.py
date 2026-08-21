@@ -4,10 +4,17 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.agent.graph import ResearchWorkflow
-from app.api.schemas import ChatRequest, ChatResponse, HealthResponse
+from app.api.schemas import (
+    ChatRequest,
+    ChatResponse,
+    ConversationHistory,
+    ConversationSummary,
+    HealthResponse,
+)
 from app.config.settings import get_settings
 from app.guardrails.input import InputGuard, InputGuardrailError
 from app.guardrails.output import OutputGuard, OutputGuardrailError
+from app.history.repository import HistoryRepository
 from app.llm.deepseek import DeepSeekError, DeepSeekTimeoutError
 from app.retrieval.openalex import (
     OpenAlexError,
@@ -41,17 +48,23 @@ def get_output_guard(request: Request) -> OutputGuard:
     return request.app.state.output_guard
 
 
+def get_history_repository(request: Request) -> HistoryRepository:
+    return request.app.state.history_repository
+
+
 @router.post("/chat", response_model=ChatResponse, tags=["research"])
 async def chat(
     request: ChatRequest,
     workflow: Annotated[ResearchWorkflow, Depends(get_research_workflow)],
     input_guard: Annotated[InputGuard, Depends(get_input_guard)],
     output_guard: Annotated[OutputGuard, Depends(get_output_guard)],
+    history: Annotated[HistoryRepository, Depends(get_history_repository)],
 ) -> ChatResponse:
     """Find relevant publications and synthesize an evidence-grounded answer."""
     conversation_id = request.conversation_id or str(uuid4())
     try:
         message = input_guard.validate(request.message)
+        prior_context = await history.latest_context(conversation_id)
         (
             answer,
             results,
@@ -64,6 +77,7 @@ async def chat(
             conversation_id=conversation_id,
             message=message,
             filters=request.filters,
+            context=prior_context,
         )
         answer = output_guard.validate(
             request=message,
@@ -101,7 +115,7 @@ async def chat(
             detail="Research request failed.",
         ) from error
 
-    return ChatResponse(
+    response = ChatResponse(
         conversationId=conversation_id,
         answer=answer,
         results=results,
@@ -111,3 +125,38 @@ async def chat(
         contextType=context_type,
         suggestions=suggestions,
     )
+    await history.save_turn(
+        conversation_id,
+        message,
+        response.model_dump(mode="json", by_alias=True, exclude={"conversation_id"}),
+    )
+    return response
+
+
+@router.get("/conversations", response_model=list[ConversationSummary], tags=["history"])
+async def list_conversations(
+    history: Annotated[HistoryRepository, Depends(get_history_repository)],
+) -> list[ConversationSummary]:
+    return [ConversationSummary.model_validate(item) for item in await history.list_conversations()]
+
+
+@router.get(
+    "/conversations/{conversation_id}", response_model=ConversationHistory, tags=["history"]
+)
+async def get_conversation(
+    conversation_id: str,
+    history: Annotated[HistoryRepository, Depends(get_history_repository)],
+) -> ConversationHistory:
+    conversation = await history.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
+    return ConversationHistory.model_validate(conversation)
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204, tags=["history"])
+async def delete_conversation(
+    conversation_id: str,
+    history: Annotated[HistoryRepository, Depends(get_history_repository)],
+) -> None:
+    if not await history.delete_conversation(conversation_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")

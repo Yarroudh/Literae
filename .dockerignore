@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+frontend
+tests
+.env
+data
+agentic_rag_chatbot.egg-info

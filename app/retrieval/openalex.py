@@ -14,7 +14,11 @@ class OpenAlexError(RuntimeError):
     """Raised when publication search cannot return usable results."""
 
 
-class OpenAlexTimeoutError(OpenAlexError):
+class OpenAlexTransientError(OpenAlexError):
+    """Raised for retryable OpenAlex rate-limit and server failures."""
+
+
+class OpenAlexTimeoutError(OpenAlexTransientError):
     """Raised when publication search exceeds its configured timeout."""
 
 
@@ -67,6 +71,8 @@ class OpenAlexClient:
                     return await self._search(client, query, filters, page)
         except httpx.TimeoutException as error:
             raise OpenAlexTimeoutError("OpenAlex request timed out") from error
+        except httpx.HTTPStatusError as error:
+            raise _http_error(error) from error
         except (httpx.HTTPError, ValueError) as error:
             raise OpenAlexError("OpenAlex request failed") from error
 
@@ -85,6 +91,8 @@ class OpenAlexClient:
                 return await self._search_authors(client, cleaned_names)
         except httpx.TimeoutException as error:
             raise OpenAlexTimeoutError("OpenAlex request timed out") from error
+        except httpx.HTTPStatusError as error:
+            raise _http_error(error) from error
         except (httpx.HTTPError, ValueError) as error:
             raise OpenAlexError("OpenAlex request failed") from error
 
@@ -168,6 +176,8 @@ class OpenAlexClient:
                 return await operation(client)
         except httpx.TimeoutException as error:
             raise OpenAlexTimeoutError("OpenAlex request timed out") from error
+        except httpx.HTTPStatusError as error:
+            raise _http_error(error) from error
         except (httpx.HTTPError, ValueError) as error:
             raise OpenAlexError("OpenAlex request failed") from error
 
@@ -507,3 +517,9 @@ def _non_negative_int(value: object) -> int:
 
 def _string(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def _http_error(error: httpx.HTTPStatusError) -> OpenAlexError:
+    if error.response.status_code == 429 or error.response.status_code >= 500:
+        return OpenAlexTransientError("OpenAlex is temporarily unavailable")
+    return OpenAlexError("OpenAlex request failed")

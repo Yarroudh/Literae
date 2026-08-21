@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { requestResearch } from "./api-chat";
+import { deleteConversation, getConversation, listConversations, requestResearch } from "./api-chat";
 import { INITIAL_FILTERS } from "./research";
 
 const successfulResponse = {
@@ -101,5 +101,31 @@ describe("requestResearch", () => {
     await expect(
       requestResearch("Format these references", INITIAL_FILTERS, "conversation-1", { fetcher }),
     ).resolves.toMatchObject({ conversationId: "conversation-1" });
+  });
+});
+
+describe("conversation history", () => {
+  it("lists and loads saved conversations", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: "conversation-1", title: "Sleep research", createdAt: "2026-08-21T00:00:00Z", updatedAt: "2026-08-21T00:00:00Z", turnCount: 1 }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "conversation-1", title: "Sleep research", createdAt: "2026-08-21T00:00:00Z", updatedAt: "2026-08-21T00:00:00Z", turns: [] }), { status: 200 }));
+
+    await expect(listConversations({ baseUrl: "http://api.test/", fetcher })).resolves.toHaveLength(1);
+    await expect(getConversation("conversation-1", { baseUrl: "http://api.test/", fetcher })).resolves.toMatchObject({ id: "conversation-1" });
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "http://api.test/conversations",
+      "http://api.test/conversations/conversation-1",
+    ]);
+  });
+
+  it("deletes a saved conversation", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+
+    await deleteConversation("conversation/with spaces", { baseUrl: "http://api.test", fetcher });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "http://api.test/conversations/conversation%2Fwith%20spaces",
+      expect.objectContaining({ method: "DELETE" }),
+    );
   });
 });

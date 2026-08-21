@@ -5,6 +5,7 @@ from app.agent.query_understanding import SearchPlan
 from app.api.main import create_app
 from app.api.schemas import AuthorResult, ResearchFilters, ResearchResult
 from app.config.settings import Settings
+from app.history.repository import InMemoryHistoryRepository
 
 
 class FakeAnswerGenerator:
@@ -103,6 +104,30 @@ async def test_chat_returns_answer_and_research_results() -> None:
     assert len(body["results"]) == 1
     assert body["results"][0]["openAccess"] is True
     assert body["results"][0]["citedByCount"] == 42
+
+
+@pytest.mark.asyncio
+async def test_history_endpoints_list_restore_and_delete_saved_chats() -> None:
+    history = InMemoryHistoryRepository()
+    app = create_app(
+        Settings(environment="test"),
+        answer_generator=FakeAnswerGenerator(),
+        research_searcher=FakeResearchSearcher(),
+        query_interpreter=FakeQueryInterpreter(),
+        history_repository=history,
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        chat_response = await client.post("/chat", json={"message": "Find sleep research"})
+        conversation_id = chat_response.json()["conversationId"]
+        listed = await client.get("/conversations")
+        restored = await client.get(f"/conversations/{conversation_id}")
+        deleted = await client.delete(f"/conversations/{conversation_id}")
+
+    assert listed.status_code == 200
+    assert listed.json()[0]["title"] == "Find sleep research"
+    assert restored.json()["turns"][0]["query"] == "Find sleep research"
+    assert restored.json()["turns"][0]["results"][0]["id"] == "W123"
+    assert deleted.status_code == 204
 
 
 @pytest.mark.asyncio
