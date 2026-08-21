@@ -7,8 +7,17 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Agent-1C3C3C?style=flat-square)](https://langchain-ai.github.io/langgraph/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![Google Cloud](https://img.shields.io/badge/Google_Cloud-Compute_Engine-4285F4?style=flat-square&logo=googlecloud&logoColor=white)](https://cloud.google.com/compute)
 
-**Live showcase:** [literae.online](https://literae.online)
+### Live deployment
+
+Explore the production showcase at **[literae.online](https://literae.online)**.
+
+Literae is deployed on a Google Cloud Compute Engine E2 Standard virtual machine. The Next.js
+frontend, FastAPI backend, and PostgreSQL database run as isolated Docker Compose services, while
+Caddy provides reverse proxying, automatic TLS certificate management, and HTTPS access. Only the
+public HTTP and HTTPS entry points are exposed; application and database traffic remain on the
+internal Docker network.
 
 Literae is a conversational academic research assistant for discovering publications, exploring
 researchers, analysing groups of papers, and producing reusable references. It combines OpenAlex,
