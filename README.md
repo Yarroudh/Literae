@@ -1,5 +1,7 @@
 # Literae
 
+![Literae logo](frontend/public/logo.png)
+
 Literae is a conversational academic research assistant for discovering publications, exploring
 researchers, analysing groups of papers, and producing reusable references. It combines OpenAlex,
 DeepSeek, LangGraph, the Model Context Protocol (MCP), Laminar tracing, and a Next.js interface in one reproducible Docker Compose environment.
@@ -88,6 +90,9 @@ runtime yet. Their planned role is described in the **Next** section.
 ## 3. System Architecture
 
 ### Component overview
+
+![Solutions](frontend/public/solutions.png)
+
 
 | Component | Responsibility |
 | --- | --- |
