@@ -59,7 +59,7 @@ export function ResearchChat() {
       const response = await requestResearch(query, filters, conversationId);
       setConversationId(response.conversationId);
       setTurns((current) => [...current, {
-        id: crypto.randomUUID(),
+        id: createTurnId(),
         query,
         answer: response.answer,
         results: response.results,
@@ -74,7 +74,7 @@ export function ResearchChat() {
         ? `${error.message} Please try again.`
         : "Literae could not complete this request. Please try again.";
       setTurns((current) => [...current, {
-        id: crypto.randomUUID(),
+        id: createTurnId(),
         query,
         answer,
         results: [],
@@ -207,6 +207,14 @@ export function ResearchChat() {
       </footer>
     </div>
   );
+}
+
+function createTurnId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `turn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 const FOLLOW_UP_SUGGESTIONS = [

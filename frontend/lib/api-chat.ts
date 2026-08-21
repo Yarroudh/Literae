@@ -50,7 +50,7 @@ export async function requestResearch(
   const fetcher = options.fetcher ?? fetch;
   const baseUrl = (options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000);
+  const timeout = globalThis.setTimeout(() => controller.abort(), options.timeoutMs ?? 90_000);
 
   try {
     const response = await fetcher(`${baseUrl}/chat`, {
