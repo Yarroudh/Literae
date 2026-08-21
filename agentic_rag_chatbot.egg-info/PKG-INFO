@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: agentic-rag-chatbot
+Version: 0.1.0
+Summary: Academic research assistant API.
+Requires-Python: >=3.12
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
+Requires-Dist: python-dotenv
+Requires-Dist: openai
+Requires-Dist: langgraph
+Requires-Dist: lmnr[all]
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: httpx; extra == "dev"
+Requires-Dist: ruff; extra == "dev"

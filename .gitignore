@@ -1,0 +1,26 @@
+.env
+.env.local
+
+.venv/
+venv/
+
+__pycache__/
+*.pyc
+
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+.idea/
+.vscode/
+.DS_Store
+
+# Next.js frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+frontend/*.tsbuildinfo
+
+data/*
+!data/.gitkeep

@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+openai
+langgraph
+lmnr[all]
+
+[dev]
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+ruff
