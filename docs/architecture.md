@@ -1,6 +1,6 @@
 # Literae architecture
 
-<img src="frontend/public/architecture.png" width="700px" alt="Literae architecture" />
+<img src="../frontend/public/architecture.png" width="700px" alt="Literae architecture" />
 
 ## MCP research tools
 
