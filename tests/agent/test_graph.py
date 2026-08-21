@@ -9,6 +9,10 @@ from app.api.schemas import AuthorResult, ResearchFilters, ResearchResult
 
 class FakeInterpreter:
     async def interpret_search(self, message: str) -> SearchPlan:
+        if "Format these references" in message:
+            return SearchPlan(intent="bibliography")
+        if "citing [1]" in message:
+            return SearchPlan(intent="citing_works")
         if "Compare these researcher" in message:
             return SearchPlan(intent="author_overview")
         if "h-index" in message:
@@ -23,6 +27,7 @@ class FakeInterpreter:
 class FakeSearcher:
     def __init__(self) -> None:
         self.calls: list[tuple[str, int]] = []
+        self.citing_calls: list[str] = []
 
     async def search(
         self, query: str, filters: ResearchFilters, *, page: int = 1
@@ -59,15 +64,39 @@ class FakeSearcher:
             )
         ]
 
+    async def get_work(self, work_id: str) -> ResearchResult | None:
+        return None
+
+    async def get_related_works(self, work_id: str) -> list[ResearchResult]:
+        return []
+
+    async def get_citing_works(self, work_id: str) -> list[ResearchResult]:
+        self.citing_calls.append(work_id)
+        return [
+            ResearchResult(
+                id="W-citing",
+                title="A citing paper",
+                authors=["Grace Scholar"],
+                year=2025,
+                source="Example Journal",
+                type="article",
+                openAccess=True,
+                citedByCount=2,
+                topics=["Research"],
+                summary="A citing publication.",
+            )
+        ]
+
+    async def get_referenced_works(self, work_id: str) -> list[ResearchResult]:
+        return []
+
 
 class FakeAnswerGenerator:
     def __init__(self) -> None:
         self.paper_calls = 0
         self.questions: list[str] = []
 
-    async def generate_answer(
-        self, question: str, evidence: Sequence[dict[str, object]]
-    ) -> str:
+    async def generate_answer(self, question: str, evidence: Sequence[dict[str, object]]) -> str:
         self.paper_calls += 1
         self.questions.append(question)
         return f"Answered {question} with {len(evidence)} paper."
@@ -135,6 +164,55 @@ async def test_ris_is_generated_deterministically_from_current_papers() -> None:
 
 
 @pytest.mark.asyncio
+async def test_apa_references_are_complete_and_do_not_call_the_llm_again() -> None:
+    searcher = FakeSearcher()
+    generator = FakeAnswerGenerator()
+    workflow = LangGraphResearchWorkflow(
+        query_interpreter=FakeInterpreter(),
+        research_searcher=searcher,
+        answer_generator=generator,
+    )
+    await workflow.run(
+        conversation_id="conversation-apa",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(),
+    )
+
+    answer, _, show_results, _, _, _, _ = await workflow.run(
+        conversation_id="conversation-apa",
+        message="Format these references in APA 7",
+        filters=ResearchFilters(),
+    )
+
+    assert answer.startswith("### APA 7 references\n\n[1]")
+    assert "Paper page 1" in answer
+    assert show_results is False
+    assert generator.paper_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_citing_work_follow_up_uses_the_selected_papers_openalex_id() -> None:
+    searcher = FakeSearcher()
+    workflow = make_workflow(searcher)
+    await workflow.run(
+        conversation_id="conversation-citations",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(),
+    )
+
+    _, results, show_results, _, _, context_type, _ = await workflow.run(
+        conversation_id="conversation-citations",
+        message="Show papers citing [1]",
+        filters=ResearchFilters(),
+    )
+
+    assert searcher.citing_calls == ["W1"]
+    assert [result.id for result in results] == ["W-citing"]
+    assert show_results is True
+    assert context_type == "papers"
+
+
+@pytest.mark.asyncio
 async def test_revision_follow_up_reuses_papers_and_previous_answer() -> None:
     searcher = FakeSearcher()
     generator = FakeAnswerGenerator()
@@ -171,7 +249,15 @@ async def test_reference_follow_up_reuses_papers_and_hides_cards() -> None:
         message="Find papers about urban digital twins",
         filters=ResearchFilters(),
     )
-    answer, follow_up_results, follow_up_show_results, _, _, context_type, suggestions = await workflow.run(
+    (
+        answer,
+        follow_up_results,
+        follow_up_show_results,
+        _,
+        _,
+        context_type,
+        suggestions,
+    ) = await workflow.run(
         conversation_id="conversation-1",
         message="Format these references in APA 7",
         filters=ResearchFilters(),
@@ -217,7 +303,15 @@ async def test_author_metrics_request_uses_author_profiles_not_publications() ->
     searcher = FakeSearcher()
     workflow = make_workflow(searcher)
 
-    answer, results, show_results, authors, show_authors, context_type, suggestions = await workflow.run(
+    (
+        answer,
+        results,
+        show_results,
+        authors,
+        show_authors,
+        context_type,
+        suggestions,
+    ) = await workflow.run(
         conversation_id="conversation-author",
         message="What is the h-index and ORCID of Anass Yarroudh?",
         filters=ResearchFilters(),

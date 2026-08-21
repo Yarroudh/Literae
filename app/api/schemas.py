@@ -67,9 +67,7 @@ class ChatResponse(BaseModel):
     show_results: bool = Field(default=True, alias="showResults")
     authors: list[AuthorResult] = Field(default_factory=list)
     show_authors: bool = Field(default=False, alias="showAuthors")
-    context_type: Literal["papers", "authors"] | None = Field(
-        default=None, alias="contextType"
-    )
+    context_type: Literal["papers", "authors"] | None = Field(default=None, alias="contextType")
     suggestions: list[str] = Field(default_factory=list)
 
 

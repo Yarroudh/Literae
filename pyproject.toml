@@ -13,7 +13,11 @@ dependencies = [
     "openai",
     "langgraph",
     "lmnr[all]",
+    "mcp>=2,<3",
 ]
+
+[project.scripts]
+literae-mcp = "app.mcp.server:main"
 
 [project.optional-dependencies]
 dev = [

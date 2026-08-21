@@ -7,6 +7,8 @@ import httpx
 
 from app.api.schemas import AuthorResult, ResearchFilters, ResearchResult
 
+_MAX_LINKED_WORKS = 50
+
 
 class OpenAlexError(RuntimeError):
     """Raised when publication search cannot return usable results."""
@@ -22,6 +24,14 @@ class ResearchSearcher(Protocol):
     ) -> list[ResearchResult]: ...
 
     async def search_authors(self, names: Sequence[str]) -> list[AuthorResult]: ...
+
+    async def get_work(self, work_id: str) -> ResearchResult | None: ...
+
+    async def get_related_works(self, work_id: str) -> list[ResearchResult]: ...
+
+    async def get_citing_works(self, work_id: str) -> list[ResearchResult]: ...
+
+    async def get_referenced_works(self, work_id: str) -> list[ResearchResult]: ...
 
 
 class OpenAlexClient:
@@ -77,6 +87,94 @@ class OpenAlexClient:
             raise OpenAlexTimeoutError("OpenAlex request timed out") from error
         except (httpx.HTTPError, ValueError) as error:
             raise OpenAlexError("OpenAlex request failed") from error
+
+    async def get_work(self, work_id: str) -> ResearchResult | None:
+        async def operation(client: httpx.AsyncClient) -> ResearchResult | None:
+            response = await client.get(
+                f"/works/{_clean_openalex_id(work_id, 'W')}", params=self._access_params()
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return _normalize_work(payload) if isinstance(payload, Mapping) else None
+
+        return await self._with_client(operation)
+
+    async def get_related_works(self, work_id: str) -> list[ResearchResult]:
+        raw_work = await self._get_raw_work(work_id)
+        return await self._get_works_by_ids(raw_work.get("related_works"))
+
+    async def get_citing_works(self, work_id: str) -> list[ResearchResult]:
+        return await self._get_works_by_filter(f"cites:{_clean_openalex_id(work_id, 'W')}")
+
+    async def get_referenced_works(self, work_id: str) -> list[ResearchResult]:
+        raw_work = await self._get_raw_work(work_id)
+        return await self._get_works_by_ids(raw_work.get("referenced_works"))
+
+    async def _get_raw_work(self, work_id: str) -> Mapping[str, Any]:
+        async def operation(client: httpx.AsyncClient) -> Mapping[str, Any]:
+            response = await client.get(
+                f"/works/{_clean_openalex_id(work_id, 'W')}", params=self._access_params()
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, Mapping):
+                raise OpenAlexError("OpenAlex returned an invalid response")
+            return payload
+
+        return await self._with_client(operation)
+
+    async def _get_works_by_ids(self, value: object) -> list[ResearchResult]:
+        if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+            return []
+        ids = [_short_openalex_id(item) for item in value]
+        cleaned = [identifier for identifier in ids if identifier.startswith("W")][
+            :_MAX_LINKED_WORKS
+        ]
+        if not cleaned:
+            return []
+        return await self._get_works_by_filter(f"openalex_id:{'|'.join(cleaned)}")
+
+    async def _get_works_by_filter(self, filter_value: str) -> list[ResearchResult]:
+        async def operation(client: httpx.AsyncClient) -> list[ResearchResult]:
+            params: dict[str, str | int] = {
+                "filter": filter_value,
+                "per-page": self._results_limit,
+            }
+            self._add_access_params(params)
+            response = await client.get("/works", params=params)
+            response.raise_for_status()
+            payload = response.json()
+            raw_results = payload.get("results") if isinstance(payload, Mapping) else None
+            if not isinstance(raw_results, list):
+                raise OpenAlexError("OpenAlex returned an invalid response")
+            return [
+                result
+                for work in raw_results
+                if isinstance(work, Mapping)
+                if (result := _normalize_work(work)) is not None
+            ]
+
+        return await self._with_client(operation)
+
+    async def _with_client(self, operation: Any) -> Any:
+        try:
+            if self._client is not None:
+                return await operation(self._client)
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=self._timeout_seconds,
+                headers={"User-Agent": "Literae/0.1"},
+            ) as client:
+                return await operation(client)
+        except httpx.TimeoutException as error:
+            raise OpenAlexTimeoutError("OpenAlex request timed out") from error
+        except (httpx.HTTPError, ValueError) as error:
+            raise OpenAlexError("OpenAlex request failed") from error
+
+    def _access_params(self) -> dict[str, str | int]:
+        params: dict[str, str | int] = {}
+        self._add_access_params(params)
+        return params
 
     async def _search_authors(
         self, client: httpx.AsyncClient, names: Sequence[str]
@@ -205,9 +303,7 @@ class OpenAlexClient:
             params["mailto"] = self._email
 
 
-def _build_filters(
-    filters: ResearchFilters, entity_ids: Mapping[str, str | None]
-) -> list[str]:
+def _build_filters(filters: ResearchFilters, entity_ids: Mapping[str, str | None]) -> list[str]:
     values: list[str] = []
     if filters.from_year is not None:
         values.append(f"from_publication_date:{filters.from_year}-01-01")
@@ -329,6 +425,13 @@ def _affiliations(value: object) -> list[str]:
 def _short_openalex_id(value: object) -> str:
     text = _string(value)
     return text.rsplit("/", 1)[-1] if text else ""
+
+
+def _clean_openalex_id(value: str, prefix: str) -> str:
+    identifier = _short_openalex_id(value).upper()
+    if not re.fullmatch(rf"{re.escape(prefix)}\d+", identifier):
+        raise ValueError(f"Invalid OpenAlex {prefix} identifier")
+    return identifier
 
 
 def _authors(value: object) -> list[str]:

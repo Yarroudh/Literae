@@ -22,8 +22,7 @@ def create_app(
     app_settings = settings or get_settings()
     laminar_key = (
         app_settings.lmnr_project_api_key.get_secret_value()
-        if app_settings.environment != "test"
-        and app_settings.lmnr_project_api_key is not None
+        if app_settings.environment != "test" and app_settings.lmnr_project_api_key is not None
         else None
     )
     initialize_laminar(
@@ -76,8 +75,7 @@ def create_app(
             research_searcher=configured_research_searcher,
             answer_generator=configured_answer_generator,
         )
-        if configured_query_interpreter is not None
-        and configured_answer_generator is not None
+        if configured_query_interpreter is not None and configured_answer_generator is not None
         else None
     )
     application.add_middleware(

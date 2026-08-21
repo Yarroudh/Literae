@@ -11,6 +11,7 @@ Requires-Dist: python-dotenv
 Requires-Dist: openai
 Requires-Dist: langgraph
 Requires-Dist: lmnr[all]
+Requires-Dist: mcp<3,>=2
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: pytest-asyncio; extra == "dev"

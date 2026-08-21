@@ -9,6 +9,9 @@ from app.agent.state import ResearchState
 from app.api.schemas import AuthorResult, ResearchFilters, ResearchResult
 from app.debugging.laminar import trace_span, traced_node
 from app.llm.deepseek import AnswerGenerator
+from app.mcp.client import MCPResearchTools
+from app.mcp.server import create_research_server
+from app.mcp.tools import ResearchTools
 from app.retrieval.openalex import ResearchSearcher
 
 
@@ -19,7 +22,9 @@ class ResearchWorkflow(Protocol):
         conversation_id: str,
         message: str,
         filters: ResearchFilters,
-    ) -> tuple[str, list[ResearchResult], bool, list[AuthorResult], bool, str | None, list[str]]: ...
+    ) -> tuple[
+        str, list[ResearchResult], bool, list[AuthorResult], bool, str | None, list[str]
+    ]: ...
 
 
 class LangGraphResearchWorkflow:
@@ -29,22 +34,51 @@ class LangGraphResearchWorkflow:
         query_interpreter: QueryInterpreter,
         research_searcher: ResearchSearcher,
         answer_generator: AnswerGenerator,
+        research_tools: ResearchTools | None = None,
     ) -> None:
         self._query_interpreter = query_interpreter
-        self._research_searcher = research_searcher
+        self._research_tools = research_tools or MCPResearchTools(
+            create_research_server(research_searcher)
+        )
         self._answer_generator = answer_generator
         builder = StateGraph(ResearchState)
-        builder.add_node("interpret_request", traced_node("interpret_request", self._interpret_request))
+        builder.add_node(
+            "interpret_request", traced_node("interpret_request", self._interpret_request)
+        )
         builder.add_node("resolve_context", traced_node("resolve_context", self._resolve_context))
-        builder.add_node("validate_search_plan", traced_node("validate_search_plan", self._validate_search_plan))
+        builder.add_node(
+            "validate_search_plan", traced_node("validate_search_plan", self._validate_search_plan)
+        )
         builder.add_node("route_request", traced_node("route_request", self._route_request))
-        builder.add_node("search_publications", traced_node("search_publications", self._search_publications))
+        builder.add_node(
+            "search_publications", traced_node("search_publications", self._search_publications)
+        )
         builder.add_node("search_authors", traced_node("search_authors", self._search_authors))
+        builder.add_node(
+            "get_work_details", traced_node("get_work_details", self._get_work_details)
+        )
+        builder.add_node(
+            "find_related_works", traced_node("find_related_works", self._find_related_works)
+        )
+        builder.add_node(
+            "get_citing_works", traced_node("get_citing_works", self._get_citing_works)
+        )
+        builder.add_node(
+            "get_referenced_works",
+            traced_node("get_referenced_works", self._get_referenced_works),
+        )
         builder.add_node("select_evidence", traced_node("select_evidence", self._select_evidence))
-        builder.add_node("execute_research_action", traced_node("execute_research_action", self._execute_research_action))
+        builder.add_node(
+            "execute_research_action",
+            traced_node("execute_research_action", self._execute_research_action),
+        )
         builder.add_node("verify_answer", traced_node("verify_answer", self._verify_answer))
-        builder.add_node("recover_or_clarify", traced_node("recover_or_clarify", self._recover_or_clarify))
-        builder.add_node("generate_followups", traced_node("generate_followups", self._generate_followups))
+        builder.add_node(
+            "recover_or_clarify", traced_node("recover_or_clarify", self._recover_or_clarify)
+        )
+        builder.add_node(
+            "generate_followups", traced_node("generate_followups", self._generate_followups)
+        )
         builder.add_edge(START, "interpret_request")
         builder.add_edge("interpret_request", "resolve_context")
         builder.add_edge("resolve_context", "validate_search_plan")
@@ -55,14 +89,26 @@ class LangGraphResearchWorkflow:
             {
                 "search": "search_publications",
                 "authors": "search_authors",
+                "work_details": "get_work_details",
+                "related_works": "find_related_works",
+                "citing_works": "get_citing_works",
+                "referenced_works": "get_referenced_works",
                 "reuse": "select_evidence",
                 "recover": "recover_or_clarify",
             },
         )
         builder.add_edge("search_publications", "select_evidence")
         builder.add_edge("search_authors", "select_evidence")
+        builder.add_edge("get_work_details", "select_evidence")
+        builder.add_edge("find_related_works", "select_evidence")
+        builder.add_edge("get_citing_works", "select_evidence")
+        builder.add_edge("get_referenced_works", "select_evidence")
         builder.add_edge("select_evidence", "execute_research_action")
-        builder.add_conditional_edges("execute_research_action", self._after_action, {"verify": "verify_answer", "recover": "recover_or_clarify"})
+        builder.add_conditional_edges(
+            "execute_research_action",
+            self._after_action,
+            {"verify": "verify_answer", "recover": "recover_or_clarify"},
+        )
         builder.add_edge("verify_answer", "generate_followups")
         builder.add_edge("recover_or_clarify", "generate_followups")
         builder.add_edge("generate_followups", END)
@@ -119,7 +165,11 @@ class LangGraphResearchWorkflow:
         message = state["message"]
         has_papers = bool(state.get("results"))
         has_authors = bool(state.get("authors"))
-        if has_papers and (_is_current_results_request(message) or _is_revision_request(message) or state["search_plan"].intent in {"bibliography", "result_analysis", "author_overview"}):
+        if has_papers and (
+            _is_current_results_request(message)
+            or _is_revision_request(message)
+            or state["search_plan"].intent in {"bibliography", "result_analysis", "author_overview"}
+        ):
             context = "papers"
         elif has_authors and _is_author_profile_request(message):
             context = "authors"
@@ -139,11 +189,22 @@ class LangGraphResearchWorkflow:
         message = state["message"]
         plan = state["search_plan"]
         should_reuse = state.get("resolved_context") == "papers" and (
-            _is_current_results_request(message) or _is_revision_request(message) or plan.intent in reusable_intents)
+            _is_current_results_request(message)
+            or _is_revision_request(message)
+            or plan.intent in reusable_intents
+        )
         wants_authors = plan.intent == "author_overview" or _is_author_profile_request(message)
+        work_routes = {
+            "work_details",
+            "related_works",
+            "citing_works",
+            "referenced_works",
+        }
         reuses_current_authors = bool(state.get("authors")) and not plan.authors and not plan.author
         if plan.intent == "unsupported":
             route = "recover"
+        elif plan.intent in work_routes:
+            route = plan.intent
         elif wants_authors:
             route = "authors"
         elif should_reuse and not _is_more_results_request(message):
@@ -152,23 +213,50 @@ class LangGraphResearchWorkflow:
             route = "search"
         return {
             "route": route,
-            "show_results": route == "search",
+            "show_results": route == "search" or route in work_routes,
             "show_authors": route == "authors" and not reuses_current_authors,
         }
 
-    def _next_step(self, state: ResearchState) -> Literal["search", "authors", "reuse", "recover"]:
+    def _next_step(
+        self, state: ResearchState
+    ) -> Literal[
+        "search",
+        "authors",
+        "work_details",
+        "related_works",
+        "citing_works",
+        "referenced_works",
+        "reuse",
+        "recover",
+    ]:
         if state.get("validation_issue"):
             return "recover"
         if state["route"] == "recover":
             return "recover"
         if state["route"] == "authors":
             return "authors"
+        if state["route"] == "work_details":
+            return "work_details"
+        if state["route"] == "related_works":
+            return "related_works"
+        if state["route"] == "citing_works":
+            return "citing_works"
+        if state["route"] == "referenced_works":
+            return "referenced_works"
         return "reuse" if state["route"] == "reuse" else "search"
 
     async def _search_publications(self, state: ResearchState) -> dict[str, object]:
-        results = await self._research_searcher.search(
-            state["search_query"], state["search_filters"], page=state.get("page", 1)
-        )
+        plan = state["search_plan"]
+        if plan.intent == "author_publications" and state["search_filters"].author:
+            results = await self._research_tools.get_author_works(
+                state["search_filters"].author,
+                state["search_filters"],
+                page=state.get("page", 1),
+            )
+        else:
+            results = await self._research_tools.search_publications(
+                state["search_query"], state["search_filters"], page=state.get("page", 1)
+            )
         return {
             "results": [result.model_dump(mode="json", by_alias=True) for result in results],
             "context_type": "papers",
@@ -181,11 +269,31 @@ class LangGraphResearchWorkflow:
             names = _author_names_from_results(state.get("results", []))
         if not names and state.get("authors"):
             return {}
-        authors = await self._research_searcher.search_authors(names)
+        authors = await self._research_tools.search_authors(names)
         return {
             "authors": [author.model_dump(mode="json", by_alias=True) for author in authors],
             "context_type": "authors",
         }
+
+    async def _get_work_details(self, state: ResearchState) -> dict[str, object]:
+        work_id = _work_id_for_request(state)
+        result = await self._research_tools.get_work_details(work_id) if work_id else None
+        return _publication_state([result] if result else [])
+
+    async def _find_related_works(self, state: ResearchState) -> dict[str, object]:
+        work_id = _work_id_for_request(state)
+        results = await self._research_tools.find_related_works(work_id) if work_id else []
+        return _publication_state(results)
+
+    async def _get_citing_works(self, state: ResearchState) -> dict[str, object]:
+        work_id = _work_id_for_request(state)
+        results = await self._research_tools.get_citing_works(work_id) if work_id else []
+        return _publication_state(results)
+
+    async def _get_referenced_works(self, state: ResearchState) -> dict[str, object]:
+        work_id = _work_id_for_request(state)
+        results = await self._research_tools.get_referenced_works(work_id) if work_id else []
+        return _publication_state(results)
 
     def _select_evidence(self, state: ResearchState) -> dict[str, object]:
         # Keep prompts bounded while preserving enough material for comparisons.
@@ -194,7 +302,13 @@ class LangGraphResearchWorkflow:
     async def _execute_research_action(self, state: ResearchState) -> dict[str, object]:
         if state.get("validation_issue"):
             return {"action": "recover"}
-        if state.get("route") == "search" and not state.get("results"):
+        if state.get("route") in {
+            "search",
+            "work_details",
+            "related_works",
+            "citing_works",
+            "referenced_works",
+        } and not state.get("results"):
             return {"action": "recover"}
         if state.get("route") == "authors" and not state.get("authors"):
             return {"action": "recover"}
@@ -203,6 +317,14 @@ class LangGraphResearchWorkflow:
             return {"answer": _format_bibtex(state.get("selected_results", [])), "action": "verify"}
         if re.search(r"\bris\b", message, re.IGNORECASE):
             return {"answer": _format_ris(state.get("selected_results", [])), "action": "verify"}
+        reference_style = _reference_style(message)
+        if state["search_plan"].intent == "bibliography" or reference_style:
+            return {
+                "answer": _format_references(
+                    state.get("selected_results", []), reference_style or "APA 7"
+                ),
+                "action": "verify",
+            }
         if state.get("route") == "authors":
             answer = await self._answer_generator.generate_author_answer(
                 state["message"], state.get("authors", [])
@@ -228,7 +350,11 @@ class LangGraphResearchWorkflow:
         count = len(state.get("selected_results", []))
         # Remove impossible numeric citations rather than displaying broken references.
         if count:
-            answer = re.sub(r"\[(\d+)\]", lambda match: match.group(0) if int(match.group(1)) <= count else "", answer)
+            answer = re.sub(
+                r"\[(\d+)\]",
+                lambda match: match.group(0) if int(match.group(1)) <= count else "",
+                answer,
+            )
         return {"answer": answer.strip()}
 
     def _recover_or_clarify(self, state: ResearchState) -> dict[str, object]:
@@ -246,7 +372,9 @@ class LangGraphResearchWorkflow:
                 "show_authors": False,
             }
         if state.get("route") == "authors":
-            answer = "I couldn't identify a matching researcher. Try adding an affiliation or ORCID."
+            answer = (
+                "I couldn't identify a matching researcher. Try adding an affiliation or ORCID."
+            )
         else:
             answer = "I couldn't find closely related publications. Try broader terms or adjust the research filters."
         return {"answer": answer}
@@ -255,14 +383,30 @@ class LangGraphResearchWorkflow:
         if state.get("validation_issue") or state["search_plan"].intent == "unsupported":
             return {"suggestions": []}
         if state.get("context_type") == "authors" and state.get("authors"):
-            names = [str(author.get("name", "")) for author in state["authors"] if author.get("name")]
+            names = [
+                str(author.get("name", "")) for author in state["authors"] if author.get("name")
+            ]
             if len(names) == 1:
                 name = names[0]
-                suggestions = [f"Show the most cited papers by {name}", f"Show the newest papers by {name}", f"Find all papers by {name}"]
+                suggestions = [
+                    f"Show the most cited papers by {name}",
+                    f"Show the newest papers by {name}",
+                    f"Find all papers by {name}",
+                ]
             else:
-                suggestions = ["Compare these researcher profiles", "Which researcher has the highest h-index?", "Summarize each researcher's main topics"]
+                suggestions = [
+                    "Compare these researcher profiles",
+                    "Which researcher has the highest h-index?",
+                    "Summarize each researcher's main topics",
+                ]
         elif state.get("results"):
-            suggestions = ["Give me BibTeX code for these papers", "Give me RIS code for these papers", "Draft a concise state-of-the-art synthesis from these papers", "Compare the main methods and findings across these papers", "Give me an overview of the authors represented here"]
+            suggestions = [
+                "Give me BibTeX code for these papers",
+                "Give me RIS code for these papers",
+                "Draft a concise state-of-the-art synthesis from these papers",
+                "Compare the main methods and findings across these papers",
+                "Give me an overview of the authors represented here",
+            ]
         else:
             suggestions = []
         return {"suggestions": suggestions}
@@ -310,11 +454,16 @@ def _is_revision_request(message: str) -> bool:
             normalized,
         )
     )
+
+
 def _is_author_profile_request(message: str) -> bool:
     normalized = " ".join(message.casefold().split())
     return bool(
         re.search(r"\b(h[- ]?index|i10|orcid|(?:author|researcher) profiles?)\b", normalized)
-        or re.search(r"\b(tell me about|overview of|information about)\b.*\b(authors?|researchers?)\b", normalized)
+        or re.search(
+            r"\b(tell me about|overview of|information about)\b.*\b(authors?|researchers?)\b",
+            normalized,
+        )
         or re.search(r"\bcompare\b.*\b(authors?|researchers?)\b", normalized)
     )
 
@@ -329,6 +478,26 @@ def _author_names_from_results(results: list[dict[str, object]]) -> list[str]:
             if isinstance(author, str) and author not in names:
                 names.append(author)
     return names[:5]
+
+
+def _work_id_for_request(state: ResearchState) -> str:
+    explicit = state["search_plan"].work_id
+    if explicit:
+        return explicit
+    results = state.get("results", [])
+    citation = re.search(r"\[(\d+)]", state["message"])
+    index = int(citation.group(1)) - 1 if citation else 0
+    if 0 <= index < len(results):
+        identifier = results[index].get("id")
+        return identifier if isinstance(identifier, str) else ""
+    return ""
+
+
+def _publication_state(results: list[ResearchResult]) -> dict[str, object]:
+    return {
+        "results": [result.model_dump(mode="json", by_alias=True) for result in results],
+        "context_type": "papers",
+    }
 
 
 def _format_bibtex(results: list[dict[str, object]]) -> str:
@@ -374,5 +543,64 @@ def _format_ris(results: list[dict[str, object]]) -> str:
     return "```ris\n" + "\n\n".join(records) + "\n```"
 
 
+def _reference_style(message: str) -> str | None:
+    normalized = " ".join(message.casefold().split())
+    styles = {
+        "apa 7": "APA 7",
+        "apa": "APA 7",
+        "mla 9": "MLA 9",
+        "mla": "MLA 9",
+        "ieee": "IEEE",
+        "chicago": "Chicago",
+        "harvard": "Harvard",
+        "vancouver": "Vancouver",
+    }
+    return next((label for term, label in styles.items() if term in normalized), None)
+
+
+def _format_references(results: list[dict[str, object]], style: str) -> str:
+    references = [
+        f"[{index}] {_format_reference(result, style)}"
+        for index, result in enumerate(results, start=1)
+    ]
+    return f"### {style} references\n\n" + "\n\n".join(references)
+
+
+def _format_reference(result: dict[str, object], style: str) -> str:
+    raw_authors = result.get("authors", [])
+    authors = (
+        [str(author).strip() for author in raw_authors if str(author).strip()]
+        if isinstance(raw_authors, list)
+        else []
+    )
+    author_text = ", ".join(authors) if authors else "Unknown author"
+    title = str(result.get("title", "Untitled")).strip() or "Untitled"
+    source = str(result.get("source", "")).strip()
+    year = str(result.get("year", "n.d."))
+    doi = str(result.get("doi", "")).strip()
+    doi_suffix = f" {doi}" if doi else ""
+    source_italic = f" *{source}*." if source and source != "Unknown source" else ""
+
+    if style == "APA 7":
+        return f"{author_text}. ({year}). {title}.{source_italic}{doi_suffix}".strip()
+    if style == "MLA 9":
+        source_part = f" *{source}*," if source and source != "Unknown source" else ""
+        return f"{author_text}. “{title}.”{source_part} {year}.{doi_suffix}".strip()
+    if style == "Chicago":
+        return f"{author_text}. “{title}.”{source_italic} {year}.{doi_suffix}".strip()
+    if style == "Harvard":
+        return f"{author_text} ({year}) ‘{title}’.{source_italic}{doi_suffix}".strip()
+    if style == "Vancouver":
+        source_part = f" {source}." if source and source != "Unknown source" else ""
+        return f"{author_text}. {title}.{source_part} {year}.{doi_suffix}".strip()
+    source_part = f" *{source}*," if source and source != "Unknown source" else ""
+    return f"{author_text}, “{title},”{source_part} {year}.{doi_suffix}".strip()
+
+
 def _bibtex_escape(value: str) -> str:
-    return value.replace("\\", "\\textbackslash{}") .replace("{", "\\{").replace("}", "\\}").replace("&", "\\&")
+    return (
+        value.replace("\\", "\\textbackslash{}")
+        .replace("{", "\\{")
+        .replace("}", "\\}")
+        .replace("&", "\\&")
+    )

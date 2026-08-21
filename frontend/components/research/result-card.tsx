@@ -28,7 +28,7 @@ export function ResultCard({ result, citationNumber }: { result: ResearchResult;
               <p className="mt-2 max-w-3xl border-l-2 border-[var(--line)] pl-3 text-sm leading-6 text-[var(--ink-soft)]">{result.summary}</p>
             </details>
           )}
-          {result.topics.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{result.topics.slice(0, 3).map((topic) => <span key={topic} className="rounded-md bg-[var(--panel-2)] px-2 py-1 text-[11px] text-[var(--muted)]">{topic}</span>)}</div>}
+          {result.topics.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{result.topics.slice(0, 3).map((topic, topicIndex) => <span key={`${result.id}-topic-${topicIndex}`} className="rounded-md bg-[var(--panel-2)] px-2 py-1 text-[11px] text-[var(--muted)]">{topic}</span>)}</div>}
         </div>
       </div>
     </article>

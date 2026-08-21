@@ -3,6 +3,7 @@ pyproject.toml
 agentic_rag_chatbot.egg-info/PKG-INFO
 agentic_rag_chatbot.egg-info/SOURCES.txt
 agentic_rag_chatbot.egg-info/dependency_links.txt
+agentic_rag_chatbot.egg-info/entry_points.txt
 agentic_rag_chatbot.egg-info/requires.txt
 agentic_rag_chatbot.egg-info/top_level.txt
 app/__init__.py

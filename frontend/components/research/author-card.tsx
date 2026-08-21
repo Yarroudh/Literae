@@ -23,7 +23,7 @@ export function AuthorCard({ author }: { author: AuthorResult }) {
       </dl>
       {author.topics.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {author.topics.map((topic) => <span key={topic} className="rounded-md bg-[var(--panel-2)] px-2.5 py-1 text-xs text-[var(--muted)]">{topic}</span>)}
+          {author.topics.map((topic, topicIndex) => <span key={`${author.id}-topic-${topicIndex}`} className="rounded-md bg-[var(--panel-2)] px-2.5 py-1 text-xs text-[var(--muted)]">{topic}</span>)}
         </div>
       )}
     </article>

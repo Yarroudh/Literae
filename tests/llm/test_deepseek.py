@@ -108,9 +108,7 @@ async def test_deepseek_extracts_a_structured_author_search_plan() -> None:
     )
     llm = DeepSeekLLM(api_key="test-key", client=FakeClient(completions))
 
-    plan = await llm.interpret_search(
-        "Can you find all papers of author called Anass Yarroudh"
-    )
+    plan = await llm.interpret_search("Can you find all papers of author called Anass Yarroudh")
 
     assert plan.author == "Anass Yarroudh"
     assert plan.query == ""

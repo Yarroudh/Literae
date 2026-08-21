@@ -128,9 +128,7 @@ async def test_search_skips_incomplete_works_and_handles_missing_optional_fields
         base_url="https://api.openalex.org",
         transport=httpx.MockTransport(handler),
     ) as http_client:
-        results = await OpenAlexClient(client=http_client).search(
-            "wellbeing", ResearchFilters()
-        )
+        results = await OpenAlexClient(client=http_client).search("wellbeing", ResearchFilters())
 
     assert len(results) == 1
     assert results[0].id == "W456"
@@ -253,9 +251,7 @@ async def test_search_authors_normalizes_openalex_metrics_and_identifiers() -> N
                         "works_count": 9,
                         "cited_by_count": 37,
                         "summary_stats": {"h_index": 4, "i10_index": 1},
-                        "affiliations": [
-                            {"institution": {"display_name": "University of Liège"}}
-                        ],
+                        "affiliations": [{"institution": {"display_name": "University of Liège"}}],
                         "topics": [
                             {"display_name": "Remote Sensing and LiDAR Applications"},
                             {"display_name": "3D Modeling in Geospatial Applications"},
@@ -284,3 +280,59 @@ async def test_search_authors_normalizes_openalex_metrics_and_identifiers() -> N
         "3D Modeling in Geospatial Applications",
     ]
     assert str(author.orcid) == "https://orcid.org/0000-0003-1387-8288"
+
+
+@pytest.mark.asyncio
+async def test_get_work_returns_a_normalized_publication() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/works/W123"
+        return httpx.Response(200, json=openalex_work())
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openalex.org",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        result = await OpenAlexClient(client=http_client).get_work("https://openalex.org/W123")
+
+    assert result is not None
+    assert result.id == "W123"
+    assert result.title == "Green spaces and wellbeing"
+
+
+@pytest.mark.asyncio
+async def test_linked_work_operations_use_openalex_relationships() -> None:
+    requested_filters: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/works/W123":
+            return httpx.Response(
+                200,
+                json=openalex_work(
+                    related_works=["https://openalex.org/W200"],
+                    referenced_works=["https://openalex.org/W300"],
+                ),
+            )
+        requested_filters.append(request.url.params["filter"])
+        return httpx.Response(200, json={"results": [openalex_work()]})
+
+    async with httpx.AsyncClient(
+        base_url="https://api.openalex.org",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        client = OpenAlexClient(client=http_client)
+        await client.get_related_works("W123")
+        await client.get_citing_works("W123")
+        await client.get_referenced_works("W123")
+
+    assert requested_filters == [
+        "openalex_id:W200",
+        "cites:W123",
+        "openalex_id:W300",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_work_operations_reject_invalid_openalex_ids() -> None:
+    client = OpenAlexClient()
+    with pytest.raises(OpenAlexError, match="request failed"):
+        await client.get_work("not-an-openalex-id")

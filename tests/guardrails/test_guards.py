@@ -50,11 +50,14 @@ def test_input_guard_rejects_an_overlong_request() -> None:
 
 def test_output_guard_accepts_grounded_citations() -> None:
     answer = "Green space improves wellbeing [1] and reduces stress [2]."
-    assert OutputGuard().validate(
-        request="Summarize these papers",
-        answer=answer,
-        publications=publications(2),
-    ) == answer
+    assert (
+        OutputGuard().validate(
+            request="Summarize these papers",
+            answer=answer,
+            publications=publications(2),
+        )
+        == answer
+    )
 
 
 def test_output_guard_rejects_an_unknown_citation() -> None:
@@ -84,6 +87,18 @@ def test_output_guard_rejects_incomplete_reference_list() -> None:
         )
 
 
+def test_output_guard_accepts_a_complete_apa_reference_list() -> None:
+    answer = "### APA 7 references\n\n[1] First reference.\n\n[2] Second reference."
+    assert (
+        OutputGuard().validate(
+            request="Format these references in APA 7",
+            answer=answer,
+            publications=publications(2),
+        )
+        == answer
+    )
+
+
 def test_output_guard_accepts_complete_bibtex() -> None:
     answer = """```bibtex
 @article{one,
@@ -94,8 +109,11 @@ def test_output_guard_accepts_complete_bibtex() -> None:
   title = {Second}
 }
 ```"""
-    assert OutputGuard().validate(
-        request="Give me BibTeX code for these papers",
-        answer=answer,
-        publications=publications(2),
-    ) == answer
+    assert (
+        OutputGuard().validate(
+            request="Give me BibTeX code for these papers",
+            answer=answer,
+            publications=publications(2),
+        )
+        == answer
+    )

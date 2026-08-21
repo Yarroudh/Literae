@@ -52,7 +52,15 @@ async def chat(
     conversation_id = request.conversation_id or str(uuid4())
     try:
         message = input_guard.validate(request.message)
-        answer, results, show_results, authors, show_authors, context_type, suggestions = await workflow.run(
+        (
+            answer,
+            results,
+            show_results,
+            authors,
+            show_authors,
+            context_type,
+            suggestions,
+        ) = await workflow.run(
             conversation_id=conversation_id,
             message=message,
             filters=request.filters,

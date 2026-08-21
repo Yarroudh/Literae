@@ -16,6 +16,7 @@ class SearchPlan(BaseModel):
     authors: list[str] = Field(default_factory=list, max_length=10)
     institution: str | None = Field(default=None, max_length=200)
     source: str | None = Field(default=None, max_length=200)
+    work_id: str | None = Field(default=None, max_length=100)
     sort: Literal["relevance", "newest", "oldest", "cited"] | None = None
     intent: Literal[
         "topic_search",
@@ -24,6 +25,10 @@ class SearchPlan(BaseModel):
         "result_analysis",
         "author_overview",
         "more_results",
+        "work_details",
+        "related_works",
+        "citing_works",
+        "referenced_works",
         "unsupported",
     ] = "topic_search"
 

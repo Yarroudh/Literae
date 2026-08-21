@@ -6,6 +6,7 @@ python-dotenv
 openai
 langgraph
 lmnr[all]
+mcp<3,>=2
 
 [dev]
 pytest

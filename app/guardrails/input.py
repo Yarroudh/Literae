@@ -18,9 +18,7 @@ class InputGuard:
         if not normalized:
             raise InputGuardrailError("Enter a research request to continue.")
         if len(normalized) > self.max_length:
-            raise InputGuardrailError(
-                f"Keep the request under {self.max_length:,} characters."
-            )
+            raise InputGuardrailError(f"Keep the request under {self.max_length:,} characters.")
         if _contains_explicit_instruction_override(normalized):
             raise InputGuardrailError(
                 "This request cannot be processed. Ask Literae directly about the research you need."
@@ -30,9 +28,7 @@ class InputGuard:
 
 def _normalize_message(message: str) -> str:
     cleaned = "".join(
-        character
-        for character in message
-        if character in {"\n", "\t"} or ord(character) >= 32
+        character for character in message if character in {"\n", "\t"} or ord(character) >= 32
     )
     return cleaned.strip()
 
