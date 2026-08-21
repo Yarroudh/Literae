@@ -550,3 +550,29 @@ The following modifications are deliberately planned rather than represented as 
 
 Literae is a research assistance tool, not an authoritative bibliographic database or a substitute for
 reviewing original publications.
+
+---
+## License
+
+Copyright © 2026 Anass Yarroudh. All rights reserved.
+
+Literae is distributed under the **Literae Source Available License v1.0**. It is source available,
+but it is not licensed under an Open Source Initiative approved open-source license.
+
+The license permits viewing and inspecting the source, private cloning, and running an unmodified
+copy for personal, academic, educational, research, evaluation, and other noncommercial purposes.
+Attribution to **Literae by Anass Yarroudh** is required where applicable.
+
+Without prior written permission from the author, the license does not permit:
+
+- commercial use;
+- modification or creation of derivative works;
+- redistribution or repository mirroring;
+- replicated or competing implementations based on the software; or
+- public hosting, deployment, or operation for third-party access.
+
+Commercial licensing and additional permissions may be requested through the
+[Literae repository](https://github.com/Yarroudh/Literae).
+
+Read the complete terms in the [LICENSE](LICENSE) file. If this summary conflicts with the license
+text, the complete license text governs.
