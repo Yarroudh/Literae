@@ -46,7 +46,6 @@ The application is designed for research assistance and is not a substitute for 
 ## 2. Repository Structure
 
 ```text
-.
 ├── app
 │   ├── agent
 │   │   ├── graph.py                 # LangGraph workflow and routing
