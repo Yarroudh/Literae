@@ -42,7 +42,9 @@ def create_app(
     )
     configured_history = history_repository or (
         PostgresHistoryRepository(app_settings.database_url.get_secret_value())
-        if app_settings.history_enabled and app_settings.database_url is not None
+        if app_settings.environment != "test"
+        and app_settings.history_enabled
+        and app_settings.database_url is not None
         else NullHistoryRepository()
     )
 
@@ -111,7 +113,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=app_settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
     application.include_router(router)

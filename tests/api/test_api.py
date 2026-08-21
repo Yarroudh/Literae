@@ -253,6 +253,23 @@ async def test_cors_allows_the_frontend_origin() -> None:
 
 
 @pytest.mark.asyncio
+async def test_cors_allows_deleting_conversations() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=make_app()), base_url="http://test"
+    ) as client:
+        response = await client.options(
+            "/conversations/example",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "DELETE",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "DELETE" in response.headers["access-control-allow-methods"]
+
+
+@pytest.mark.asyncio
 async def test_chat_reports_when_deepseek_is_not_configured() -> None:
     settings = Settings(environment="test", deepseek_api_key=None)
     async with AsyncClient(
