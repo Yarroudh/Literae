@@ -2,6 +2,14 @@
 
 <img src="frontend/public/logo.png" alt="Literae logo" width="80px">
 
+[![Live application](https://img.shields.io/badge/Live-Literae.online-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white)](https://literae.online)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent-1C3C3C?style=flat-square)](https://langchain-ai.github.io/langgraph/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+
+**Live showcase:** [literae.online](https://literae.online)
+
 Literae is a conversational academic research assistant for discovering publications, exploring
 researchers, analysing groups of papers, and producing reusable references. It combines OpenAlex,
 DeepSeek, LangGraph, the Model Context Protocol (MCP), Laminar tracing, and a Next.js interface in one reproducible Docker Compose environment.
