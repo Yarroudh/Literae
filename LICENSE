@@ -1,0 +1,175 @@
+Literae Source Available License v1.0
+
+Copyright © 2026 Anass Yarroudh. All rights reserved.
+
+1. Purpose
+
+Literae is source available software.
+
+This License allows limited use of Literae for personal, academic, educational, research, and evaluation purposes while protecting the author's rights in the Software.
+
+Literae is not released under an Open Source Initiative approved open source license.
+
+2. Definitions
+
+"Software" means the Literae source code, documentation, interfaces, original assets, configuration files, and other original materials distributed as part of the Literae repository.
+
+"Author" means Anass Yarroudh, or any legal person or entity that is identified as the copyright holder of the Software.
+
+"Commercial Use" means any use intended to produce revenue, financial benefit, business advantage, paid services, commercial products, client work, or other commercial value.
+
+3. Permission Granted
+
+Subject to all terms of this License, you may:
+
+1. View and inspect the Software.
+
+2. Download or clone the Software for private use.
+
+3. Run an unmodified copy of the Software for personal use.
+
+4. Run an unmodified copy of the Software for academic, educational, or research purposes.
+
+5. Evaluate and test an unmodified copy of the Software for noncommercial purposes.
+
+No other rights are granted unless the Author gives explicit written permission.
+
+4. Commercial Use Is Prohibited
+
+You may not use the Software for any Commercial Use without prior written permission from the Author.
+
+This restriction includes using the Software in connection with a paid product, subscription, business service, consulting engagement, client project, commercial platform, revenue generating application, internal commercial operation, or other activity that provides direct or indirect commercial value.
+
+You may not sell, rent, sublicense, monetize, license, or otherwise commercially exploit the Software.
+
+You may not offer access to the Software as a paid or commercially supported service.
+
+You may not incorporate the Software into a commercial product or proprietary commercial system without prior written permission from the Author.
+
+Commercial licenses may be granted separately by the Author.
+
+5. Modification Is Prohibited
+
+You may not modify, alter, adapt, translate, extend, transform, rewrite, or otherwise change the Software.
+
+You may not create derivative works based on the Software.
+
+You may not modify the source code and distribute or use the modified version.
+
+Changes that are strictly necessary to provide local environment variables, credentials, API keys, network addresses, file paths, or equivalent runtime configuration are permitted, provided that such changes do not alter the underlying functionality or source code of the Software.
+
+6. Redistribution Is Prohibited
+
+You may not redistribute the Software or any substantial portion of it.
+
+You may not upload the Software to another public repository.
+
+You may not mirror the Literae repository.
+
+You may not republish, repackage, resell, sublicense, or distribute copies of the Software to third parties.
+
+You may not remove the Software from its original attribution and present it as another project.
+
+Private cloning and downloading for a permitted use under Section 3 are allowed.
+
+7. Replication Is Prohibited
+
+You may not use the Software, its source code, or substantial portions of its protected implementation to create, publish, distribute, or commercialize a replicated or substantially copied version of Literae.
+
+You may not reproduce substantial portions of the Software under another project name or identity.
+
+You may not use copied or adapted portions of the Software to create a competing implementation.
+
+Nothing in this Section restricts rights that cannot lawfully be restricted, including independent creation that does not copy copyright protected material from Literae.
+
+8. Public Hosting Is Prohibited
+
+You may not publicly host, deploy, or operate the Software for access by third parties without prior written permission from the Author.
+
+You may not provide Literae as an online service, hosted application, managed service, public demonstration service, or similar offering without permission.
+
+Private academic or research deployments that are not publicly accessible and are otherwise permitted by this License are allowed.
+
+9. Attribution Is Required
+
+Any permitted public reference to, demonstration of, publication involving, research involving, or academic use of Literae must provide clear attribution to the Author and the Literae project.
+
+At minimum, the attribution must include:
+
+Literae by Anass Yarroudh
+
+Repository: https://github.com/Yarroudh/Literae
+
+Where formal citations are appropriate, the following citation may be used:
+
+Anass Yarroudh. Literae. 2026. GitHub repository. https://github.com/Yarroudh/Literae
+
+The attribution must be reasonably visible and must not suggest that the Author endorses the user, organization, research, product, or publication.
+
+10. Notices Must Remain
+
+You may not remove, conceal, replace, or alter any copyright notice, authorship notice, attribution notice, or licensing notice included with the Software.
+
+11. No Trademark Rights
+
+This License does not grant permission to use the Literae name, logo, branding, or other identifiers except as reasonably necessary to identify the Software and provide the attribution required by this License.
+
+No use of the Literae name may imply sponsorship, affiliation, approval, or endorsement by the Author.
+
+12. Third Party Components
+
+The Software may include or depend upon third party libraries, frameworks, services, APIs, datasets, models, or other materials.
+
+Those third party components remain subject to their own licenses and terms.
+
+This License applies only to material for which the Author has the legal authority to grant rights.
+
+Nothing in this License changes or overrides the license of any third party component.
+
+13. Ownership
+
+The Software is licensed, not sold.
+
+All copyright, ownership rights, intellectual property rights, and other rights in the Software remain with the Author.
+
+No rights are granted by implication.
+
+14. Separate Permissions
+
+The Author may grant additional rights through a separate written agreement.
+
+Such rights may include permission for commercial use, modification, redistribution, derivative works, public hosting, integration, or other uses prohibited by this License.
+
+Permission granted to one person or organization does not grant the same permission to any other person or organization.
+
+15. Termination
+
+Your rights under this License terminate automatically if you violate any term of this License.
+
+After termination, you must stop using the Software and delete all copies under your control, except where retention is required by applicable law.
+
+The Author may restore permission through explicit written authorization.
+
+16. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHOR DISCLAIMS ALL WARRANTIES, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, RELIABILITY, TITLE, AND NON INFRINGEMENT.
+
+17. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHOR SHALL NOT BE LIABLE FOR ANY CLAIM, LOSS, DAMAGE, LIABILITY, COST, OR EXPENSE ARISING FROM OR RELATED TO THE SOFTWARE OR ITS USE.
+
+18. Rights Provided by Law
+
+Nothing in this License is intended to restrict any right that cannot legally be restricted under applicable law.
+
+Applicable statutory rights, copyright exceptions, fair use, fair dealing, and equivalent legal rights remain unaffected where the law requires them to remain available.
+
+19. Contact and Additional Licensing
+
+For commercial licensing, modification permission, redistribution permission, public deployment permission, integration rights, or other uses not granted by this License, contact the Author through the official Literae repository:
+
+https://github.com/Yarroudh/Literae
+
+By using, downloading, cloning, or accessing the Software beyond merely viewing the public repository, you agree to comply with the terms of this License.
