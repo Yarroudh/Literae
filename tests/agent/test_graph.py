@@ -8,7 +8,11 @@ from app.api.schemas import AuthorResult, ResearchFilters, ResearchResult
 
 
 class FakeInterpreter:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
     async def interpret_search(self, message: str) -> SearchPlan:
+        self.calls.append(message)
         if "Format these references" in message:
             return SearchPlan(intent="bibliography")
         if "citing [1]" in message:
@@ -89,6 +93,49 @@ class FakeSearcher:
 
     async def get_referenced_works(self, work_id: str) -> list[ResearchResult]:
         return []
+
+
+class ManyResultsSearcher(FakeSearcher):
+    async def search(
+        self, query: str, filters: ResearchFilters, *, page: int = 1
+    ) -> list[ResearchResult]:
+        self.calls.append((query, page))
+        return [
+            ResearchResult(
+                id=f"W{index}",
+                title=f"Paper {index}",
+                authors=["Ada Researcher"],
+                year=2024,
+                source="Example Journal",
+                type="article",
+                openAccess=True,
+                citedByCount=index,
+                topics=["Research"],
+                summary="A research paper.",
+            )
+            for index in range(1, 13)
+        ]
+
+
+class MetadataOnlySearcher(FakeSearcher):
+    async def search(
+        self, query: str, filters: ResearchFilters, *, page: int = 1
+    ) -> list[ResearchResult]:
+        self.calls.append((query, page))
+        return [
+            ResearchResult(
+                id="W1",
+                title="Digital Twins and Participatory Urban Planning",
+                authors=["Ada Researcher"],
+                year=2024,
+                source="Example Journal",
+                type="article",
+                openAccess=True,
+                citedByCount=1,
+                topics=["Digital Twins", "Urban Planning"],
+                summary="No abstract is available for this publication.",
+            )
+        ]
 
 
 class FakeAnswerGenerator:
@@ -191,6 +238,27 @@ async def test_apa_references_are_complete_and_do_not_call_the_llm_again() -> No
 
 
 @pytest.mark.asyncio
+async def test_reference_export_includes_more_than_ten_current_papers() -> None:
+    workflow = make_workflow(ManyResultsSearcher())
+    await workflow.run(
+        conversation_id="conversation-many-references",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(resultsLimit=12),
+    )
+
+    answer, results, _, _, _, _, _ = await workflow.run(
+        conversation_id="conversation-many-references",
+        message="Format these references in APA 7",
+        filters=ResearchFilters(resultsLimit=12),
+    )
+
+    assert len(results) == 12
+    assert "[11] Ada Researcher. (2024). Paper 11." in answer
+    assert "[12] Ada Researcher. (2024). Paper 12." in answer
+    assert "None" not in answer
+
+
+@pytest.mark.asyncio
 async def test_citing_work_follow_up_uses_the_selected_papers_openalex_id() -> None:
     searcher = FakeSearcher()
     workflow = make_workflow(searcher)
@@ -216,8 +284,9 @@ async def test_citing_work_follow_up_uses_the_selected_papers_openalex_id() -> N
 async def test_revision_follow_up_reuses_papers_and_previous_answer() -> None:
     searcher = FakeSearcher()
     generator = FakeAnswerGenerator()
+    interpreter = FakeInterpreter()
     workflow = LangGraphResearchWorkflow(
-        query_interpreter=FakeInterpreter(),
+        query_interpreter=interpreter,
         research_searcher=searcher,
         answer_generator=generator,
     )
@@ -233,10 +302,62 @@ async def test_revision_follow_up_reuses_papers_and_previous_answer() -> None:
     )
 
     assert searcher.calls == [('Draft a "Related work" section from these papers', 1)]
+    assert interpreter.calls == ['Draft a "Related work" section from these papers']
     assert show_results is False
     assert context_type == "papers"
     assert "Previous response:" in generator.questions[-1]
     assert "Follow-up instruction:\nmake it longer" in generator.questions[-1]
+
+
+@pytest.mark.asyncio
+async def test_analysis_follow_up_reuses_results_without_replanning_or_searching() -> None:
+    searcher = FakeSearcher()
+    interpreter = FakeInterpreter()
+    workflow = LangGraphResearchWorkflow(
+        query_interpreter=interpreter,
+        research_searcher=searcher,
+        answer_generator=FakeAnswerGenerator(),
+    )
+    await workflow.run(
+        conversation_id="conversation-analysis",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(),
+    )
+
+    await workflow.run(
+        conversation_id="conversation-analysis",
+        message="Compare the methods and findings across these papers",
+        filters=ResearchFilters(),
+    )
+
+    assert interpreter.calls == ["Find papers about urban digital twins"]
+    assert searcher.calls == [("Find papers about urban digital twins", 1)]
+
+
+@pytest.mark.asyncio
+async def test_metadata_only_analysis_does_not_invent_paper_details() -> None:
+    generator = FakeAnswerGenerator()
+    workflow = LangGraphResearchWorkflow(
+        query_interpreter=FakeInterpreter(),
+        research_searcher=MetadataOnlySearcher(),
+        answer_generator=generator,
+    )
+    await workflow.run(
+        conversation_id="conversation-metadata-only",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(),
+    )
+
+    answer, _, _, _, _, _, _ = await workflow.run(
+        conversation_id="conversation-metadata-only",
+        message="Compare the methods and findings across these papers",
+        filters=ResearchFilters(),
+    )
+
+    assert "not a reliable synthesis of methods, findings" in answer
+    assert "Digital Twins and Participatory Urban Planning" in answer
+    assert "Abstracts or full text are needed" in answer
+    assert generator.paper_calls == 1
 
 
 @pytest.mark.asyncio

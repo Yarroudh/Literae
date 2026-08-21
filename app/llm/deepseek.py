@@ -44,7 +44,7 @@ class DeepSeekLLM:
         self,
         *,
         api_key: str,
-        model: str = "deepseek-v4-flash",
+        model: str = "deepseek-v4-pro",
         base_url: str = "https://api.deepseek.com",
         timeout_seconds: float = 30,
         client: DeepSeekAsyncClient | None = None,
@@ -251,16 +251,47 @@ unset. The response must be valid JSON with no Markdown."""
 
 
 def build_research_prompt(question: str, evidence: Sequence[dict[str, object]]) -> str:
-    serialized_evidence = json.dumps(list(evidence), ensure_ascii=False, indent=2, default=str)
+    scoped_evidence = [_scope_publication(item, index) for index, item in enumerate(evidence, 1)]
+    serialized_evidence = json.dumps(scoped_evidence, ensure_ascii=False, indent=2, default=str)
     return f"""Research request:
 {question.strip()}
 
 Publications:
 {serialized_evidence}
 
-Answer the request directly and concisely. Use [1], [2], and so on when citing publications, following
-their order above. Do not invent findings or citations. Do not describe how the publications were
-obtained or refer to them as evidence, context, records, or data provided to you."""
+Answer the request directly and concisely. Citation numbers are fixed by publication_index: cite
+publication 1 as [1], publication 2 as [2], and so on. When discussing individual publications,
+introduce their citations in ascending order.
+
+Grounding rules:
+- Treat each publication independently. A claim supported by one publication does not establish that
+  another publication studied the same place, method, result, argument, limitation, or conclusion.
+- For evidence_scope "abstract_and_metadata", paper-specific claims may use only the abstract and
+  metadata in that publication's object.
+- For evidence_scope "metadata_only", mention only explicit bibliographic fields, the title, and
+  indexed topics. Do not infer or recall its study location, methods, findings, arguments, warnings,
+  limitations, relationships, or conclusions—even if you know the paper from training.
+- Do not cite a metadata_only publication as support for a substantive claim. If its limitations are
+  relevant, state plainly that its abstract is unavailable.
+- If the request requires details that are unavailable, say what cannot be established instead of
+  completing the gap from prior knowledge.
+
+Do not invent findings or citations. Do not describe how the publications were obtained or refer to them as evidence,
+context, records, or data provided to you."""
+
+
+def _scope_publication(item: dict[str, object], index: int) -> dict[str, object]:
+    publication = dict(item)
+    summary = str(publication.get("summary", "")).strip()
+    has_abstract = bool(
+        summary and summary != "No abstract is available for this publication."
+    )
+    publication["publication_index"] = index
+    publication["evidence_scope"] = (
+        "abstract_and_metadata" if has_abstract else "metadata_only"
+    )
+    publication["summary"] = summary if has_abstract else None
+    return publication
 
 
 def build_author_prompt(question: str, authors: Sequence[dict[str, object]]) -> str:

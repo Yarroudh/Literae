@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     deepseek_api_key: SecretStr | None = None
-    deepseek_model: str = "deepseek-v4-flash"
+    deepseek_model: str = "deepseek-v4-pro"
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_timeout_seconds: float = Field(default=30, gt=0, le=120)
     openalex_base_url: str = "https://api.openalex.org"

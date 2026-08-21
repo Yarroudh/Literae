@@ -45,7 +45,7 @@ async def test_deepseek_generates_an_answer_with_the_configured_model() -> None:
     completions = FakeCompletions()
     llm = DeepSeekLLM(
         api_key="test-key",
-        model="deepseek-v4-flash",
+        model="deepseek-v4-pro",
         client=FakeClient(completions),
     )
 
@@ -56,7 +56,7 @@ async def test_deepseek_generates_an_answer_with_the_configured_model() -> None:
 
     assert answer == "A grounded answer [1]."
     request = completions.calls[0]
-    assert request["model"] == "deepseek-v4-flash"
+    assert request["model"] == "deepseek-v4-pro"
     assert request["extra_body"] == {"thinking": {"type": "disabled"}}
     system_prompt = request["messages"][0]["content"]
     assert "Never mention supplied or provided evidence" in system_prompt
@@ -135,3 +135,21 @@ def test_prompt_requires_grounding_and_citations() -> None:
     assert "Available evidence" not in prompt
     assert "[1]" in prompt
     assert "A source" in prompt
+
+
+def test_prompt_marks_missing_abstracts_as_metadata_only() -> None:
+    prompt = build_research_prompt(
+        "Compare these papers",
+        [
+            {
+                "title": "A paper without an abstract",
+                "topics": ["Urban Planning"],
+                "summary": "No abstract is available for this publication.",
+            }
+        ],
+    )
+
+    assert '"evidence_scope": "metadata_only"' in prompt
+    assert '"summary": null' in prompt
+    assert "Do not infer or recall its study location, methods, findings" in prompt
+    assert "even if you know the paper from training" in prompt

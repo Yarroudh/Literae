@@ -5,7 +5,7 @@ from typing import Literal, Protocol
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from app.agent.query_understanding import QueryInterpreter, merge_search_plan
+from app.agent.query_understanding import QueryInterpreter, SearchPlan, merge_search_plan
 from app.agent.state import ResearchState
 from app.api.schemas import AuthorResult, ResearchFilters, ResearchResult
 from app.debugging.laminar import trace_span, traced_node
@@ -157,7 +157,9 @@ class LangGraphResearchWorkflow:
 
     async def _interpret_request(self, state: ResearchState) -> dict[str, object]:
         previous_answer = state.get("answer", "")
-        plan = await self._query_interpreter.interpret_search(state["message"])
+        plan = _context_followup_plan(
+            state["message"], state
+        ) or await self._query_interpreter.interpret_search(state["message"])
         query, filters = merge_search_plan(state["message"], state["explicit_filters"], plan)
         if state.get("results") and _is_more_results_request(state["message"]):
             plan = plan.model_copy(update={"intent": "more_results"})
@@ -328,14 +330,14 @@ class LangGraphResearchWorkflow:
             return {"action": "recover"}
         message = state["message"]
         if re.search(r"\bbibtex\b", message, re.IGNORECASE):
-            return {"answer": _format_bibtex(state.get("selected_results", [])), "action": "verify"}
+            return {"answer": _format_bibtex(state.get("results", [])), "action": "verify"}
         if re.search(r"\bris\b", message, re.IGNORECASE):
-            return {"answer": _format_ris(state.get("selected_results", [])), "action": "verify"}
+            return {"answer": _format_ris(state.get("results", [])), "action": "verify"}
         reference_style = _reference_style(message)
         if state["search_plan"].intent == "bibliography" or reference_style:
             return {
                 "answer": _format_references(
-                    state.get("selected_results", []), reference_style or "APA 7"
+                    state.get("results", []), reference_style or "APA 7"
                 ),
                 "action": "verify",
             }
@@ -346,6 +348,13 @@ class LangGraphResearchWorkflow:
             return {"answer": answer, "action": "verify"}
         results = state.get("selected_results", [])
         question = state["message"]
+        if state["search_plan"].intent == "result_analysis" and not any(
+            _has_abstract(result) for result in results
+        ):
+            return {
+                "answer": _format_metadata_only_analysis(results),
+                "action": "verify",
+            }
         if _is_revision_request(question) and state.get("previous_answer"):
             question = (
                 "Revise the previous response according to the follow-up instruction. "
@@ -361,7 +370,17 @@ class LangGraphResearchWorkflow:
 
     def _verify_answer(self, state: ResearchState) -> dict[str, object]:
         answer = state.get("answer", "")
-        count = len(state.get("selected_results", []))
+        message = state["message"]
+        is_reference_export = bool(
+            state["search_plan"].intent == "bibliography"
+            or _reference_style(message)
+            or re.search(r"\b(?:bibtex|ris)\b", message, re.IGNORECASE)
+        )
+        count = len(
+            state.get("results", [])
+            if is_reference_export
+            else state.get("selected_results", [])
+        )
         # Remove impossible numeric citations rather than displaying broken references.
         if count:
             answer = re.sub(
@@ -436,6 +455,23 @@ def _is_more_results_request(message: str) -> bool:
         )
         or re.search(r"\b(find|search|show|get)\b.*\bmore\b", normalized)
     )
+
+
+def _context_followup_plan(message: str, state: ResearchState) -> SearchPlan | None:
+    """Resolve unambiguous follow-ups without another planning or retrieval call."""
+    if not state.get("results"):
+        return None
+    if _is_more_results_request(message):
+        return SearchPlan(intent="more_results")
+    if re.search(r"\bbibtex\b|\bris(?:\s+code)?\b", message, re.IGNORECASE) or _reference_style(
+        message
+    ):
+        return SearchPlan(intent="bibliography")
+    if _is_author_profile_request(message):
+        return SearchPlan(intent="author_overview")
+    if _is_revision_request(message) or _is_current_results_request(message):
+        return SearchPlan(intent="result_analysis")
+    return None
 
 
 def _is_current_results_request(message: str) -> bool:
@@ -515,6 +551,38 @@ def _publication_state(results: list[ResearchResult]) -> dict[str, object]:
     }
 
 
+def _has_abstract(result: Mapping[str, object]) -> bool:
+    summary = str(result.get("summary", "")).strip()
+    return bool(summary and summary != "No abstract is available for this publication.")
+
+
+def _format_metadata_only_analysis(results: list[dict[str, object]]) -> str:
+    lines = [
+        (
+            "The available publication metadata supports a thematic overview, but not a reliable "
+            "synthesis of methods, findings, study locations, or conclusions because these papers "
+            "do not include abstracts."
+        ),
+        "",
+    ]
+    for index, result in enumerate(results, start=1):
+        title = str(result.get("title", "Untitled"))
+        topics = result.get("topics", [])
+        topic_text = ", ".join(str(topic) for topic in topics) if isinstance(topics, list) else ""
+        suffix = f" — indexed topics: {topic_text}" if topic_text else ""
+        lines.append(f"- [{index}] {title}{suffix}")
+    lines.extend(
+        [
+            "",
+            (
+                "Abstracts or full text are needed before making paper-specific claims about what "
+                "these publications found or argued."
+            ),
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _format_bibtex(results: list[dict[str, object]]) -> str:
     entries: list[str] = []
     used_keys: set[str] = set()
@@ -534,7 +602,8 @@ def _format_bibtex(results: list[dict[str, object]]) -> str:
         source = str(result.get("source", "")).strip()
         if source and source != "Unknown source":
             fields.append(f"  journal = {{{_bibtex_escape(source)}}}")
-        doi = str(result.get("doi", "")).strip()
+        raw_doi = result.get("doi")
+        doi = str(raw_doi).strip() if raw_doi else ""
         if doi:
             fields.append(f"  doi = {{{doi.removeprefix('https://doi.org/')}}}")
         entries.append(f"@article{{{key},\n" + ",\n".join(fields) + "\n}")
@@ -550,7 +619,8 @@ def _format_ris(results: list[dict[str, object]]) -> str:
         source = str(result.get("source", "")).strip()
         if source and source != "Unknown source":
             lines.append(f"JO  - {source}")
-        doi = str(result.get("doi", "")).strip()
+        raw_doi = result.get("doi")
+        doi = str(raw_doi).strip() if raw_doi else ""
         if doi:
             lines.append(f"DO  - {doi.removeprefix('https://doi.org/')}")
         lines.append("ER  -")
@@ -592,7 +662,8 @@ def _format_reference(result: dict[str, object], style: str) -> str:
     title = str(result.get("title", "Untitled")).strip() or "Untitled"
     source = str(result.get("source", "")).strip()
     year = str(result.get("year", "n.d."))
-    doi = str(result.get("doi", "")).strip()
+    raw_doi = result.get("doi")
+    doi = str(raw_doi).strip() if raw_doi else ""
     doi_suffix = f" {doi}" if doi else ""
     source_italic = f" *{source}*." if source and source != "Unknown source" else ""
 
