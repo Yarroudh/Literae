@@ -17,7 +17,7 @@ flowchart TB
         Filters[Research filters]
         Cards[Publication and author cards]
         HistoryUI[Conversation history]
-        ApiClient[Typed API client<br/>90-second browser timeout]
+        ApiClient[Typed API client<br/>120-second browser timeout]
         UI --> ApiClient
         Filters --> ApiClient
         ApiClient --> Cards
@@ -261,6 +261,6 @@ flowchart LR
     LLM[Instrumented DeepSeek calls] -. spans .-> Trace
 ```
 
-The browser aborts a chat request after 90 seconds. FastAPI translates validation, OpenAlex,
+The browser aborts a chat request after 120 seconds. FastAPI translates validation, OpenAlex,
 DeepSeek, timeout, and output-integrity failures into typed HTTP responses. Only successful turns are
 written to history.

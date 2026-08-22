@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     deepseek_api_key: SecretStr | None = None
     deepseek_model: str = "deepseek-v4-pro"
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_timeout_seconds: float = Field(default=30, gt=0, le=120)
+    deepseek_timeout_seconds: float = Field(default=75, gt=0, le=120)
     openalex_base_url: str = "https://api.openalex.org"
     openalex_api_key: SecretStr | None = None
     openalex_email: str | None = None

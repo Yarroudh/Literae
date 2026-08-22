@@ -45,6 +45,20 @@ describe("requestResearch", () => {
     await expect(requestResearch("sleep", INITIAL_FILTERS, undefined, { fetcher })).rejects.toMatchObject({ code: "server", status: 503 });
   });
 
+  it("preserves timeout details returned by the research service", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ detail: "Research request timed out." }), { status: 504 }),
+    );
+
+    await expect(
+      requestResearch("Compare these papers", INITIAL_FILTERS, "conversation-1", { fetcher }),
+    ).rejects.toMatchObject({
+      code: "server",
+      status: 504,
+      message: "Research request timed out.",
+    });
+  });
+
   it("preserves safe input-guard messages", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ detail: "This request cannot be processed." }), { status: 400 }),

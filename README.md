@@ -344,7 +344,7 @@ Copy `.env.example` to `.env`.
 | `DEEPSEEK_API_KEY` | Yes | — | DeepSeek API credential |
 | `DEEPSEEK_MODEL` | Yes | `deepseek-v4-flash` | DeepSeek chat model |
 | `DEEPSEEK_BASE_URL` | Yes | `https://api.deepseek.com` | OpenAI-compatible endpoint |
-| `DEEPSEEK_TIMEOUT_SECONDS` | Recommended | `30` | Model timeout |
+| `DEEPSEEK_TIMEOUT_SECONDS` | Recommended | `75` | Model timeout |
 
 ### OpenAlex and reliability
 
