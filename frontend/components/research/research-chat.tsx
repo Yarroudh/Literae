@@ -255,7 +255,7 @@ export function ResearchChat() {
                 </article>
               </div>
             ))}
-            {isLoading && <><div className="flex justify-end"><div className="max-w-[85%] rounded-xl rounded-tr-sm bg-[var(--ink)] px-4 py-3 text-sm leading-6 text-[var(--surface)]">{pendingQuery}</div></div><ResearchingState status={streamStatus} answer={streamingAnswer} onStop={stopGeneration} /></>}
+            {isLoading && <><div className="flex justify-end"><div className="max-w-[85%] rounded-xl rounded-tr-sm bg-[var(--ink)] px-4 py-3 text-sm leading-6 text-[var(--surface)]">{pendingQuery}</div></div><ResearchingState status={streamStatus} answer={streamingAnswer} /></>}
             <div ref={endRef} />
           </section>
         )}
@@ -385,7 +385,7 @@ function AuthorFollowUpSuggestions({ authors, suggestions: generatedSuggestions,
   );
 }
 
-function ResearchingState({ status, answer, onStop }: { status: string; answer: string; onStop: () => void }) {
+function ResearchingState({ status, answer }: { status: string; answer: string }) {
   return (
     <article className="flex gap-3 sm:gap-4" aria-live="polite">
       <div className="mt-1 hidden size-9 shrink-0 place-items-center rounded-[10px] bg-[var(--accent-soft)] sm:grid"><Image src="/logo.png?v=3" alt="" width={24} height={24} unoptimized /></div>
@@ -398,7 +398,6 @@ function ResearchingState({ status, answer, onStop }: { status: string; answer: 
             <span className="flex items-center gap-1" aria-hidden="true"><span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" /></span>
           </div>
         )}
-        <button type="button" onClick={onStop} className="mt-3 text-xs font-semibold text-[var(--muted)] hover:text-[var(--ink)]">Stop generating</button>
       </div>
     </article>
   );
