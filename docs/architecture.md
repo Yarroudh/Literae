@@ -70,7 +70,7 @@ flowchart TB
     DeepSeek -. instrumented LLM calls .-> Laminar
 ```
 
-[Download SVG](diagrams/system-deployment.svg) · [Download Mermaid source](diagrams/system-deployment.mmd)
+[Download PNG](diagrams/system-deployment.png) · [Download Mermaid source](diagrams/system-deployment.mmd)
 
 In production, Caddy, Next.js, FastAPI, and PostgreSQL run as separate Docker Compose services.
 MCP is in process: it preserves a typed, discoverable tool boundary without adding another network
@@ -133,7 +133,7 @@ flowchart TD
     Suggestions --> End([Return workflow state])
 ```
 
-[Download SVG](diagrams/langgraph-workflow.svg) · [Download Mermaid source](diagrams/langgraph-workflow.mmd)
+[Download PNG](diagrams/langgraph-workflow.png) · [Download Mermaid source](diagrams/langgraph-workflow.mmd)
 
 The `ResearchState` carries the message, merged filters, structured plan, search query, page,
 publications, authors, previous answer, route, visibility flags, context type, and suggestions. The
@@ -222,7 +222,7 @@ sequenceDiagram
     UI-->>U: Completed research turn
 ```
 
-[Download SVG](diagrams/chat-turn-sequence.svg) · [Download Mermaid source](diagrams/chat-turn-sequence.mmd)
+[Download PNG](diagrams/chat-turn-sequence.png) · [Download Mermaid source](diagrams/chat-turn-sequence.mmd)
 
 ### Streaming and cancellation
 
@@ -293,7 +293,7 @@ flowchart LR
     LLM[Instrumented DeepSeek calls] -. spans .-> Trace
 ```
 
-[Download SVG](diagrams/reliability-persistence-observability.svg) · [Download Mermaid source](diagrams/reliability-persistence-observability.mmd)
+[Download PNG](diagrams/reliability-persistence-observability.png) · [Download Mermaid source](diagrams/reliability-persistence-observability.mmd)
 
 The browser aborts a chat request after 120 seconds. FastAPI translates validation, OpenAlex,
 DeepSeek, timeout, and output-integrity failures into typed HTTP responses. Only successful turns are

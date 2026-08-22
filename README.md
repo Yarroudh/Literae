@@ -162,7 +162,7 @@ flowchart TD
     UI -. Stop generating aborts active workflow .-> API
 ```
 
-[Download as SVG](docs/diagrams/request-flow.svg) · [Download Mermaid source](docs/diagrams/request-flow.mmd)
+[Download as PNG](docs/diagrams/request-flow.png) · [Download Mermaid source](docs/diagrams/request-flow.mmd)
 
 The browser may cancel an active stream at any time. Only a successfully generated and validated
 turn is written to conversation history.
