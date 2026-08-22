@@ -242,7 +242,7 @@ export function ResearchChat() {
                         const citationNumber = selectable
                           ? (selected ? includedPaperIds.indexOf(result.id) + 1 : null)
                           : resultIndex + 1;
-                        return <ResultCard key={result.id} result={result} citationNumber={citationNumber} selectable={selectable} selected={selected} onSelectedChange={(value) => setPaperIncluded(result.id, value)} />;
+                        return <ResultCard key={result.id} result={result} citationNumber={citationNumber} selectable={selectable} selected={selected} selectionDisabled={selectable && selected && includedPaperIds.length === 1} onSelectedChange={(value) => setPaperIncluded(result.id, value)} />;
                       })}</div>
                     ) : turn.showResults ? (
                       <p className="mt-4 rounded-[15px] border border-[var(--line)] p-4 text-sm text-[var(--muted)]">No closely related works were returned. Try broader terms or adjust the research filters.</p>
