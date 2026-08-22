@@ -129,7 +129,41 @@ runtime yet. Their planned role is described in the **Next** section.
 
 The following diagram shows the flow of a research request through the system.
 
-<img src="frontend/public/flow.png" width="700px" alt="High-level request flow">
+```mermaid
+flowchart TD
+    User([Researcher]) --> UI[Next.js chat interface]
+    UI -->|POST /chat/stream| API[FastAPI]
+    API --> Guard[Input guardrail]
+    Guard --> Context[Load conversation context]
+    Context --> Plan{Request type}
+
+    Plan -->|New or ambiguous request| DeepSeekPlan[DeepSeek structured SearchPlan]
+    Plan -->|Clear follow-up| LocalPlan[Deterministic context plan]
+    DeepSeekPlan --> Route[LangGraph routing]
+    LocalPlan --> Route
+
+    Route -->|New research needed| MCP[In-process MCP research tools]
+    MCP --> OpenAlex[(OpenAlex)]
+    OpenAlex --> Evidence[Normalize publications and evidence scopes]
+    Route -->|Use current papers| Selection[Apply selected-paper subset]
+    Evidence --> Selection
+
+    Selection --> Action{Research action}
+    Action -->|Analysis or synthesis| DeepSeekAnswer[DeepSeek grounded generation]
+    Action -->|References, BibTeX, or RIS| Deterministic[Deterministic formatting]
+    Action -->|No usable abstract| MetadataOnly[Metadata-only safe answer]
+
+    DeepSeekAnswer --> Verify[Output and citation guardrail]
+    Deterministic --> Verify
+    MetadataOnly --> Verify
+    Verify --> History[(PostgreSQL conversation history)]
+    Verify --> Stream[NDJSON progress, answer chunks,<br/>and final response]
+    Stream --> UI
+    UI -. Stop generating aborts active workflow .-> API
+```
+
+The browser may cancel an active stream at any time. Only a successfully generated and validated
+turn is written to conversation history.
 
 
 ---

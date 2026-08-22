@@ -16,7 +16,7 @@ flowchart TB
         UI[Research chat UI]
         Filters[Research filters]
         Cards[Publication and author cards]
-        Selection[Paper inclusion checkboxes]
+        Selection[Paper inclusion controls]
         HistoryUI[Conversation history]
         ApiClient[Typed API client<br/>120-second browser timeout]
         UI --> ApiClient
@@ -261,7 +261,7 @@ If every selected paper is metadata-only, the graph bypasses generation and retu
 overview explaining that abstracts or full text are required for substantive analysis. References and
 exports use all selected publications and never depend on the model.
 
-By default, every current publication is selected. The user can uncheck papers on the active result
+By default, every current publication is selected. The user can include or exclude papers on the active result
 cards. Follow-up requests send the checked OpenAlex IDs as `includedResultIds`; LangGraph filters the
 analysis evidence and deterministic exports to that subset while retaining the complete result set in
 conversation history. Checked papers are renumbered in result order so answer citations continue to
