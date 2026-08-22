@@ -48,6 +48,7 @@ Core capabilities include:
 9. Explore an individual work's details, related publications, citing publications, and references.
 10. Save conversations history and restore their latest research context after an API restart.
 11. Trace LangGraph, DeepSeek, and MCP activity with optional Laminar observability for debugging and performance analysis.
+12. Stream research progress and answer text with user-controlled cancellation.
 
 The application is designed for research assistance and is not a substitute for reviewing original publications. It does not provide authoritative bibliographic data, and its results may be incomplete or contain metadata inherited from external scholarly records. Always verify important claims, authorship, publication details, and references against the original publication.
 
@@ -309,6 +310,7 @@ docker compose exec -T database psql -U literae -d literae < literae-backup.sql
 | --- | --- | --- |
 | `GET` | `/health` | Service health and version |
 | `POST` | `/chat` | Run or continue a research conversation |
+| `POST` | `/chat/stream` | Stream progress, answer chunks, and the completed research response as NDJSON |
 | `GET` | `/conversations` | List recent conversations |
 | `GET` | `/conversations/{id}` | Restore one conversation and all turns |
 | `DELETE` | `/conversations/{id}` | Delete a conversation and its turns |
@@ -344,7 +346,7 @@ Copy `.env.example` to `.env`.
 | `ENVIRONMENT` | No | `development` | Enables docs outside production |
 | `CORS_ORIGINS` | No | `["http://localhost:3000"]` | JSON array of allowed browser origins |
 | `DEEPSEEK_API_KEY` | Yes | — | DeepSeek API credential |
-| `DEEPSEEK_MODEL` | Yes | `deepseek-v4-flash` | DeepSeek chat model |
+| `DEEPSEEK_MODEL` | Yes | `deepseek-v4-pro` | DeepSeek chat model |
 | `DEEPSEEK_BASE_URL` | Yes | `https://api.deepseek.com` | OpenAI-compatible endpoint |
 | `DEEPSEEK_TIMEOUT_SECONDS` | Recommended | `75` | Model timeout |
 
@@ -541,7 +543,7 @@ The following modifications are deliberately planned rather than represented as 
 - [ ] Add Redis-backed distributed caching and request deduplication for multiple API replicas.
 - [ ] Add an automated evaluation dataset for routing, retrieval relevance, citation grounding,
       reference completeness, guardrails, latency, and regression tracking.
-- [ ] Add streaming responses and cancellable long-running research tasks.
+- [x] Add streaming responses and cancellable long-running research tasks.
 - [ ] Add saved research collections, paper bookmarks, notes, and tags.
 - [ ] Add comparison tables, citation-network visualizations, and publication timelines.
 - [ ] Add DOI, ORCID, institution, and source disambiguation interfaces.

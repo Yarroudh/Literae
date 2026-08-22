@@ -28,9 +28,15 @@ type RequestOptions = {
   fetcher?: typeof fetch;
   timeoutMs?: number;
   includedResultIds?: string[];
+  signal?: AbortSignal;
 };
 
-export type ChatApiErrorCode = "timeout" | "network" | "server" | "invalid-response";
+type StreamOptions = RequestOptions & {
+  onStatus?: (message: string) => void;
+  onAnswerDelta?: (delta: string) => void;
+};
+
+export type ChatApiErrorCode = "cancelled" | "timeout" | "network" | "server" | "invalid-response";
 
 export class ChatApiError extends Error {
   constructor(
@@ -40,6 +46,71 @@ export class ChatApiError extends Error {
   ) {
     super(message);
     this.name = "ChatApiError";
+  }
+}
+
+export async function streamResearch(
+  message: string,
+  filters: ResearchFilters,
+  conversationId?: string,
+  options: StreamOptions = {},
+): Promise<ChatResponse> {
+  const fetcher = options.fetcher ?? fetch;
+  const baseUrl = (options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+  const controller = new AbortController();
+  let timedOut = false;
+  const cancelFromCaller = () => controller.abort();
+  options.signal?.addEventListener("abort", cancelFromCaller, { once: true });
+  const timeout = globalThis.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, options.timeoutMs ?? 120_000);
+
+  try {
+    const response = await fetcher(`${baseUrl}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
+      body: JSON.stringify(chatRequestBody(message, filters, conversationId, options.includedResultIds)),
+      signal: controller.signal,
+    });
+    if (!response.ok || !response.body) {
+      throw new ChatApiError("server", "The research service could not complete this request.", response.status);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let completed: ChatResponse | undefined;
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event: unknown = JSON.parse(line);
+        if (!event || typeof event !== "object" || !("type" in event)) continue;
+        if (event.type === "status" && "message" in event && typeof event.message === "string") options.onStatus?.(event.message);
+        if (event.type === "answer_delta" && "delta" in event && typeof event.delta === "string") options.onAnswerDelta?.(event.delta);
+        if (event.type === "error" && "message" in event && typeof event.message === "string") {
+          throw new ChatApiError("server", event.message, "status" in event && typeof event.status === "number" ? event.status : undefined);
+        }
+        if (event.type === "complete" && "response" in event && isChatResponse(event.response)) completed = event.response;
+      }
+      if (done) break;
+    }
+    if (!completed) throw new ChatApiError("invalid-response", "The research stream ended unexpectedly.");
+    return completed;
+  } catch (error) {
+    if (error instanceof ChatApiError) throw error;
+    if (error instanceof DOMException && error.name === "AbortError") {
+      if (timedOut) throw new ChatApiError("timeout", "The research request took too long.");
+      throw new ChatApiError("cancelled", "Generation stopped.");
+    }
+    throw new ChatApiError("network", "Literae could not reach the research service.");
+  } finally {
+    globalThis.clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", cancelFromCaller);
   }
 }
 
@@ -58,12 +129,7 @@ export async function requestResearch(
     const response = await fetcher(`${baseUrl}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: message.trim(),
-        filters: toApiFilters(filters),
-        ...(conversationId && { conversationId }),
-        ...(options.includedResultIds && { includedResultIds: options.includedResultIds }),
-      }),
+      body: JSON.stringify(chatRequestBody(message, filters, conversationId, options.includedResultIds)),
       signal: controller.signal,
     });
 
@@ -89,6 +155,20 @@ export async function requestResearch(
   } finally {
     globalThis.clearTimeout(timeout);
   }
+}
+
+function chatRequestBody(
+  message: string,
+  filters: ResearchFilters,
+  conversationId?: string,
+  includedResultIds?: string[],
+) {
+  return {
+    message: message.trim(),
+    filters: toApiFilters(filters),
+    ...(conversationId && { conversationId }),
+    ...(includedResultIds && { includedResultIds }),
+  };
 }
 
 export async function listConversations(options: RequestOptions = {}): Promise<ConversationSummary[]> {

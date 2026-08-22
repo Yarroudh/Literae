@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -104,6 +106,27 @@ async def test_chat_returns_answer_and_research_results() -> None:
     assert len(body["results"]) == 1
     assert body["results"][0]["openAccess"] is True
     assert body["results"][0]["citedByCount"] == 42
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_emits_progress_answer_chunks_and_completion() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=make_app()), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/chat/stream",
+            json={"message": "How do urban green spaces affect mental health?"},
+        )
+
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    assert events[0] == {"type": "status", "message": "Understanding your request"}
+    assert "".join(
+        event["delta"] for event in events if event["type"] == "answer_delta"
+    ).startswith("Synthesized answer")
+    assert events[-1]["type"] == "complete"
+    assert events[-1]["response"]["results"][0]["id"] == "W123"
 
 
 @pytest.mark.asyncio

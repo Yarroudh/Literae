@@ -143,7 +143,7 @@ sequenceDiagram
     autonumber
     actor U as Researcher
     participant UI as Next.js chat
-    participant API as FastAPI /chat
+    participant API as FastAPI /chat/stream
     participant IG as Input guard
     participant DB as History repository
     participant G as LangGraph
@@ -154,7 +154,8 @@ sequenceDiagram
 
     U->>UI: Submit message and filters
     UI->>UI: Add optimistic user turn and loading state
-    UI->>API: POST /chat with message, filters, conversationId,<br/>and optional includedResultIds
+    UI->>API: POST /chat/stream with message, filters, conversationId,<br/>and optional includedResultIds
+    API-->>UI: NDJSON progress status
     API->>IG: Normalize and validate message
     IG-->>API: Validated message
     API->>DB: Load latest conversation context
@@ -211,10 +212,22 @@ sequenceDiagram
     OG-->>API: Validated answer
     API->>DB: Save complete successful turn as JSONB
     DB-->>API: Saved
-    API-->>UI: ChatResponse JSON
+    API-->>UI: Incremental answer_delta events
+    API-->>UI: Final validated ChatResponse event
     UI->>UI: Validate response and render answer and cards
     UI-->>U: Completed research turn
 ```
+
+### Streaming and cancellation
+
+The browser consumes `/chat/stream` as newline-delimited JSON. The API first emits progress events,
+then `answer_delta` events, and finally one `complete` event containing the same validated response
+contract used by `/chat`. The existing JSON endpoint remains available for compatibility.
+
+Each active browser request owns an `AbortController`. Selecting **Stop generating** closes the
+stream and cancels the in-flight workflow task. A cancelled workflow does not save an incomplete
+turn; history is written only after generation and output validation have completed successfully.
+The frontend distinguishes deliberate cancellation from its 120-second timeout and network errors.
 
 ## Routing behavior
 

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Header } from "@/components/chat/header";
-import { LoaderIcon, RefreshIcon, SendIcon } from "@/components/ui/icons";
-import { ChatApiError, getConversation, requestResearch } from "@/lib/api-chat";
+import { CloseIcon, LoaderIcon, RefreshIcon, SendIcon } from "@/components/ui/icons";
+import { ChatApiError, getConversation, streamResearch } from "@/lib/api-chat";
 import { INITIAL_FILTERS, MAX_RESEARCH_REQUEST_LENGTH, sampleResearchTopics } from "@/lib/research";
 import type { AuthorResult, ResearchFilters, ResearchResult } from "@/types/research";
 import { AnswerMarkdown } from "./answer-markdown";
@@ -33,9 +33,12 @@ export function ResearchChat() {
   const [pendingQuery, setPendingQuery] = useState("");
   const [conversationId, setConversationId] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+  const [streamStatus, setStreamStatus] = useState("");
+  const [streamingAnswer, setStreamingAnswer] = useState("");
   const [includedPaperIds, setIncludedPaperIds] = useState<string[]>([]);
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns, isLoading]);
   useEffect(() => {
@@ -56,10 +59,21 @@ export function ResearchChat() {
     if (!query || isLoading) return;
     setDraft("");
     setPendingQuery(query);
+    setStreamStatus("Understanding your request");
+    setStreamingAnswer("");
     setIsLoading(true);
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
+    let partialAnswer = "";
     try {
-      const response = await requestResearch(query, filters, conversationId, {
+      const response = await streamResearch(query, filters, conversationId, {
         ...(conversationId && includedPaperIds.length > 0 && { includedResultIds: includedPaperIds }),
+        signal: controller.signal,
+        onStatus: setStreamStatus,
+        onAnswerDelta: (delta) => {
+          partialAnswer += delta;
+          setStreamingAnswer(partialAnswer);
+        },
       });
       setConversationId(response.conversationId);
       setIncludedPaperIds(response.includedResultIds ?? response.results.map((result) => result.id));
@@ -76,7 +90,10 @@ export function ResearchChat() {
         includedResultIds: response.includedResultIds ?? response.results.map((result) => result.id),
       }]);
     } catch (error) {
-      const answer = error instanceof ChatApiError
+      const cancelled = error instanceof ChatApiError && error.code === "cancelled";
+      const answer = cancelled
+        ? `${partialAnswer}${partialAnswer ? "\n\n" : ""}*Generation stopped.*`
+        : error instanceof ChatApiError
         ? `${error.message} Please try again.`
         : "Literae could not complete this request. Please try again.";
       setTurns((current) => [...current, {
@@ -90,12 +107,19 @@ export function ResearchChat() {
         contextType: null,
         suggestions: [],
         includedResultIds: [],
-        failed: true,
+        failed: !cancelled,
       }]);
     } finally {
+      if (activeRequestRef.current === controller) activeRequestRef.current = null;
       setPendingQuery("");
+      setStreamStatus("");
+      setStreamingAnswer("");
       setIsLoading(false);
     }
+  }
+
+  function stopGeneration() {
+    activeRequestRef.current?.abort();
   }
 
   function retry(turnId: string, query: string) {
@@ -231,7 +255,7 @@ export function ResearchChat() {
                 </article>
               </div>
             ))}
-            {isLoading && <><div className="flex justify-end"><div className="max-w-[85%] rounded-xl rounded-tr-sm bg-[var(--ink)] px-4 py-3 text-sm leading-6 text-[var(--surface)]">{pendingQuery}</div></div><ResearchingState hasCurrentPapers={turns.some((turn) => !turn.failed && turn.results.length > 0)} /></>}
+            {isLoading && <><div className="flex justify-end"><div className="max-w-[85%] rounded-xl rounded-tr-sm bg-[var(--ink)] px-4 py-3 text-sm leading-6 text-[var(--surface)]">{pendingQuery}</div></div><ResearchingState status={streamStatus} answer={streamingAnswer} onStop={stopGeneration} /></>}
             <div ref={endRef} />
           </section>
         )}
@@ -244,9 +268,15 @@ export function ResearchChat() {
             <textarea id="research-request" rows={1} value={draft} maxLength={MAX_RESEARCH_REQUEST_LENGTH} disabled={isLoading} placeholder="Ask Literae a question" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }} className="block max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 outline-none placeholder:text-[var(--muted)] disabled:opacity-60" />
             <div className="flex shrink-0 items-center gap-1.5 pb-0.5">
               <FilterPopover filters={filters} onChange={updateFilter} onReset={resetFilters} />
-              <button type="submit" disabled={!draft.trim() || isLoading} className="grid size-9 place-items-center rounded-[9px] bg-[var(--accent)] text-white transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50" aria-label={isLoading ? "Finding research" : "Send message"} title={isLoading ? "Finding research" : "Send message"}>
-                {isLoading ? <LoaderIcon className="size-4 animate-spin" /> : <SendIcon className="size-[18px]" />}
-              </button>
+              {isLoading ? (
+                <button type="button" onClick={stopGeneration} className="grid size-9 place-items-center rounded-[9px] bg-[var(--ink)] text-[var(--surface)] transition hover:opacity-80" aria-label="Stop generating" title="Stop generating">
+                  <CloseIcon className="size-4" />
+                </button>
+              ) : (
+                <button type="submit" disabled={!draft.trim()} className="grid size-9 place-items-center rounded-[9px] bg-[var(--accent)] text-white transition hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Send message" title="Send message">
+                  <SendIcon className="size-[18px]" />
+                </button>
+              )}
             </div>
           </div>
           <p className="mt-2 text-center text-[11px] leading-4 text-[var(--muted)]">Enter to send · Shift+Enter for a new line</p>
@@ -355,12 +385,21 @@ function AuthorFollowUpSuggestions({ authors, suggestions: generatedSuggestions,
   );
 }
 
-function ResearchingState({ hasCurrentPapers = false }: { hasCurrentPapers?: boolean }) {
+function ResearchingState({ status, answer, onStop }: { status: string; answer: string; onStop: () => void }) {
   return (
-    <div className="flex items-center gap-3 text-sm text-[var(--muted)]" role="status">
-      <LoaderIcon className="size-4 animate-spin text-[var(--accent)]" />
-      <span>{hasCurrentPapers ? "Working with your current papers" : "Finding relevant research"}</span>
-      <span className="flex items-center gap-1" aria-hidden="true"><span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" /></span>
-    </div>
+    <article className="flex gap-3 sm:gap-4" aria-live="polite">
+      <div className="mt-1 hidden size-9 shrink-0 place-items-center rounded-[10px] bg-[var(--accent-soft)] sm:grid"><Image src="/logo.png?v=3" alt="" width={24} height={24} unoptimized /></div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">Literae</p>
+        {answer ? <AnswerMarkdown>{answer}</AnswerMarkdown> : (
+          <div className="mt-3 flex items-center gap-3 text-sm text-[var(--muted)]" role="status">
+            <LoaderIcon className="size-4 animate-spin text-[var(--accent)]" />
+            <span>{status || "Working on your research"}</span>
+            <span className="flex items-center gap-1" aria-hidden="true"><span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" /></span>
+          </div>
+        )}
+        <button type="button" onClick={onStop} className="mt-3 text-xs font-semibold text-[var(--muted)] hover:text-[var(--ink)]">Stop generating</button>
+      </div>
+    </article>
   );
 }

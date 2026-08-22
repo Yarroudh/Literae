@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { deleteConversation, getConversation, listConversations, requestResearch } from "./api-chat";
+import { deleteConversation, getConversation, listConversations, requestResearch, streamResearch } from "./api-chat";
 import { INITIAL_FILTERS } from "./research";
 
 const successfulResponse = {
@@ -132,6 +132,58 @@ describe("requestResearch", () => {
     await expect(
       requestResearch("Format these references", INITIAL_FILTERS, "conversation-1", { fetcher }),
     ).resolves.toMatchObject({ conversationId: "conversation-1" });
+  });
+});
+
+describe("streamResearch", () => {
+  it("reports progress and answer chunks before returning the final response", async () => {
+    const encoder = new TextEncoder();
+    const events = [
+      { type: "status", message: "Preparing the research context" },
+      { type: "answer_delta", delta: "Two relevant " },
+      { type: "answer_delta", delta: "works were found." },
+      { type: "complete", response: successfulResponse },
+    ];
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(
+      new ReadableStream({
+        start(controller) {
+          for (const event of events) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/x-ndjson" } },
+    ));
+    const statuses: string[] = [];
+    let answer = "";
+
+    const response = await streamResearch("Find papers", INITIAL_FILTERS, undefined, {
+      fetcher,
+      onStatus: (status) => statuses.push(status),
+      onAnswerDelta: (delta) => { answer += delta; },
+    });
+
+    expect(statuses).toEqual(["Preparing the research context"]);
+    expect(answer).toBe("Two relevant works were found.");
+    expect(response).toEqual(successfulResponse);
+    expect(fetcher.mock.calls[0][0]).toBe("http://localhost:8000/chat/stream");
+  });
+
+  it("distinguishes user cancellation from a timeout", async () => {
+    const controller = new AbortController();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      await new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+      return new Response();
+    });
+    const request = streamResearch("Find papers", INITIAL_FILTERS, undefined, {
+      fetcher,
+      signal: controller.signal,
+    });
+
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ code: "cancelled", message: "Generation stopped." });
   });
 });
 

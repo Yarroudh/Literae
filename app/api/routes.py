@@ -1,7 +1,11 @@
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 
 from app.agent.graph import ResearchWorkflow
 from app.api.schemas import (
@@ -153,6 +157,62 @@ async def chat(
         response.model_dump(mode="json", by_alias=True, exclude={"conversation_id"}),
     )
     return response
+
+
+@router.post("/chat/stream", tags=["research"])
+async def stream_chat(
+    request: ChatRequest,
+    workflow: Annotated[ResearchWorkflow, Depends(get_research_workflow)],
+    input_guard: Annotated[InputGuard, Depends(get_input_guard)],
+    output_guard: Annotated[OutputGuard, Depends(get_output_guard)],
+    history: Annotated[HistoryRepository, Depends(get_history_repository)],
+) -> StreamingResponse:
+    """Stream research progress, answer text, and the final validated response as NDJSON."""
+
+    async def events() -> AsyncIterator[str]:
+        yield _stream_event("status", message="Understanding your request")
+        task = asyncio.create_task(chat(request, workflow, input_guard, output_guard, history))
+        progress = iter(("Preparing the research context", "Writing a grounded answer"))
+        try:
+            while not task.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(task), timeout=1.5)
+                except TimeoutError:
+                    message = next(progress, None)
+                    if message:
+                        yield _stream_event("status", message=message)
+            response = await task
+            for chunk in _answer_chunks(response.answer):
+                yield _stream_event("answer_delta", delta=chunk)
+                await asyncio.sleep(0)
+            yield _stream_event(
+                "complete",
+                response=response.model_dump(mode="json", by_alias=True),
+            )
+        except asyncio.CancelledError:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            raise
+        except HTTPException as error:
+            yield _stream_event("error", message=str(error.detail), status=error.status_code)
+
+    return StreamingResponse(
+        events(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _stream_event(event_type: str, **payload: object) -> str:
+    return json.dumps({"type": event_type, **payload}, ensure_ascii=False) + "\n"
+
+
+def _answer_chunks(answer: str, words_per_chunk: int = 8) -> list[str]:
+    words = answer.split(" ")
+    return [
+        (" " if index else "") + " ".join(words[index : index + words_per_chunk])
+        for index in range(0, len(words), words_per_chunk)
+    ]
 
 
 @router.get("/conversations", response_model=list[ConversationSummary], tags=["history"])
