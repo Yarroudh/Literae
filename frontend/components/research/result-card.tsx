@@ -34,7 +34,7 @@ export function ResultCard({ result, citationNumber, selectable = false, selecte
                 title={selectionDisabled ? "At least one paper must remain included" : selected ? "Ignore in follow-up analysis" : "Include in follow-up analysis"}
               >
                 {selected ? <CheckIcon className="size-3" /> : <PlusIcon className="size-3" />}
-                <span>{selected ? "Included" : "Ignored"}</span>
+                <span>{selected ? "Included" : "Include"}</span>
               </button>
             )}
           </div>
