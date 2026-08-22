@@ -9,6 +9,7 @@ export type ChatResponse = {
   showAuthors?: boolean;
   contextType?: "papers" | "authors" | null;
   suggestions?: string[];
+  includedResultIds?: string[];
 };
 
 export type ConversationSummary = {
@@ -26,6 +27,7 @@ type RequestOptions = {
   baseUrl?: string;
   fetcher?: typeof fetch;
   timeoutMs?: number;
+  includedResultIds?: string[];
 };
 
 export type ChatApiErrorCode = "timeout" | "network" | "server" | "invalid-response";
@@ -60,6 +62,7 @@ export async function requestResearch(
         message: message.trim(),
         filters: toApiFilters(filters),
         ...(conversationId && { conversationId }),
+        ...(options.includedResultIds && { includedResultIds: options.includedResultIds }),
       }),
       signal: controller.signal,
     });
@@ -153,6 +156,7 @@ function isChatResponse(value: unknown): value is ChatResponse {
     && candidate.authors.every(isAuthorResult)
     && (candidate.showAuthors === undefined || typeof candidate.showAuthors === "boolean")
     && (candidate.suggestions === undefined || (Array.isArray(candidate.suggestions) && candidate.suggestions.every((item) => typeof item === "string")))
+    && (candidate.includedResultIds === undefined || (Array.isArray(candidate.includedResultIds) && candidate.includedResultIds.every((item) => typeof item === "string")))
     && (candidate.contextType == null || candidate.contextType === "papers" || candidate.contextType === "authors");
 }
 

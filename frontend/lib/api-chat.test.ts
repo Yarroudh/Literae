@@ -92,6 +92,23 @@ describe("requestResearch", () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({ conversationId: "conversation-1" });
   });
 
+  it("sends the publications selected for follow-up analysis", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify(successfulResponse), { status: 200 }),
+    );
+
+    await requestResearch("Compare these papers", INITIAL_FILTERS, "conversation-1", {
+      fetcher,
+      includedResultIds: ["W2", "W4"],
+    });
+
+    const [, init] = fetcher.mock.calls[0];
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      conversationId: "conversation-1",
+      includedResultIds: ["W2", "W4"],
+    });
+  });
+
   it("accepts publications without a DOI", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({

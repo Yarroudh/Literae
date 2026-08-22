@@ -24,6 +24,7 @@ class ResearchWorkflow(Protocol):
         message: str,
         filters: ResearchFilters,
         context: Mapping[str, object] | None = None,
+        included_result_ids: list[str] | None = None,
     ) -> tuple[
         str, list[ResearchResult], bool, list[AuthorResult], bool, str | None, list[str]
     ]: ...
@@ -123,13 +124,18 @@ class LangGraphResearchWorkflow:
         message: str,
         filters: ResearchFilters,
         context: Mapping[str, object] | None = None,
+        included_result_ids: list[str] | None = None,
     ) -> tuple[str, list[ResearchResult], bool, list[AuthorResult], bool, str | None, list[str]]:
         with trace_span(
             "literae_research_request",
             input_data={"conversation_id": conversation_id, "message": message},
             session_id=conversation_id,
         ):
-            input_state: dict[str, object] = {"message": message, "explicit_filters": filters}
+            input_state: dict[str, object] = {
+                "message": message,
+                "explicit_filters": filters,
+                "included_result_ids": included_result_ids or [],
+            }
             if context:
                 input_state.update(
                     {
@@ -288,7 +294,7 @@ class LangGraphResearchWorkflow:
         plan = state["search_plan"]
         names = plan.authors or ([plan.author] if plan.author else [])
         if not names:
-            names = _author_names_from_results(state.get("results", []))
+            names = _author_names_from_results(_considered_results(state))
         if not names and state.get("authors"):
             return {}
         authors = await self._research_tools.search_authors(names)
@@ -318,10 +324,9 @@ class LangGraphResearchWorkflow:
         return _publication_state(results)
 
     def _select_evidence(self, state: ResearchState) -> dict[str, object]:
-        # Every retrieved publication is made available for analysis. The model may
-        # prioritize the most relevant works, but it must make that choice from the
-        # complete result set rather than an arbitrary positional cutoff.
-        return {"selected_results": state.get("results", [])}
+        # Every retrieved publication is available by default. Explicit follow-up
+        # selections narrow the evidence without applying an arbitrary positional cutoff.
+        return {"selected_results": _considered_results(state)}
 
     async def _execute_research_action(self, state: ResearchState) -> dict[str, object]:
         if state.get("validation_issue"):
@@ -338,14 +343,17 @@ class LangGraphResearchWorkflow:
             return {"action": "recover"}
         message = state["message"]
         if re.search(r"\bbibtex\b", message, re.IGNORECASE):
-            return {"answer": _format_bibtex(state.get("results", [])), "action": "verify"}
+            return {
+                "answer": _format_bibtex(state.get("selected_results", [])),
+                "action": "verify",
+            }
         if re.search(r"\bris\b", message, re.IGNORECASE):
-            return {"answer": _format_ris(state.get("results", [])), "action": "verify"}
+            return {"answer": _format_ris(state.get("selected_results", [])), "action": "verify"}
         reference_style = _reference_style(message)
         if state["search_plan"].intent == "bibliography" or reference_style:
             return {
                 "answer": _format_references(
-                    state.get("results", []), reference_style or "APA 7"
+                    state.get("selected_results", []), reference_style or "APA 7"
                 ),
                 "action": "verify",
             }
@@ -378,17 +386,7 @@ class LangGraphResearchWorkflow:
 
     def _verify_answer(self, state: ResearchState) -> dict[str, object]:
         answer = state.get("answer", "")
-        message = state["message"]
-        is_reference_export = bool(
-            state["search_plan"].intent == "bibliography"
-            or _reference_style(message)
-            or re.search(r"\b(?:bibtex|ris)\b", message, re.IGNORECASE)
-        )
-        count = len(
-            state.get("results", [])
-            if is_reference_export
-            else state.get("selected_results", [])
-        )
+        count = len(state.get("selected_results", []))
         # Remove impossible numeric citations rather than displaying broken references.
         if count:
             answer = re.sub(
@@ -554,7 +552,9 @@ def _work_id_for_request(state: ResearchState) -> str:
     explicit = state["search_plan"].work_id
     if explicit:
         return explicit
-    results = state.get("results", [])
+    results = _filter_results_by_selection(
+        state.get("results", []), state.get("included_result_ids", [])
+    )
     citation = re.search(r"\[(\d+)]", state["message"])
     index = int(citation.group(1)) - 1 if citation else 0
     if 0 <= index < len(results):
@@ -568,6 +568,23 @@ def _publication_state(results: list[ResearchResult]) -> dict[str, object]:
         "results": [result.model_dump(mode="json", by_alias=True) for result in results],
         "context_type": "papers",
     }
+
+
+def _considered_results(state: ResearchState) -> list[dict[str, object]]:
+    results = state.get("results", [])
+    included_ids = state.get("included_result_ids", [])
+    if state.get("route") not in {"reuse", "authors"} or not included_ids:
+        return results
+    return _filter_results_by_selection(results, included_ids)
+
+
+def _filter_results_by_selection(
+    results: list[dict[str, object]], included_ids: list[str]
+) -> list[dict[str, object]]:
+    if not included_ids:
+        return results
+    included = set(included_ids)
+    return [result for result in results if str(result.get("id", "")) in included]
 
 
 def _has_abstract(result: Mapping[str, object]) -> bool:

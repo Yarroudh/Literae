@@ -42,11 +42,12 @@ Core capabilities include:
 4. Display author information with affiliations, ORCID, OpenAlex profile, works count, citation count,
    h-index, i10-index, and research topics.
 5. Preserve conversational context for follow-up analysis, comparison, rewriting, and synthesis.
-6. Generate complete APA, MLA, IEEE, Chicago, Harvard, and Vancouver reference lists.
-7. Export references as BibTeX or RIS for tools such as Overleaf, Zotero, and Mendeley.
-8. Explore an individual work's details, related publications, citing publications, and references.
-9. Save conversations history and restore their latest research context after an API restart.
-10. Trace LangGraph, DeepSeek, and MCP activity with optional Laminar observability for debugging and performance analysis.
+6. Let users include or ignore individual papers before running follow-up analysis or exports.
+7. Generate complete APA, MLA, IEEE, Chicago, Harvard, and Vancouver reference lists.
+8. Export references as BibTeX or RIS for tools such as Overleaf, Zotero, and Mendeley.
+9. Explore an individual work's details, related publications, citing publications, and references.
+10. Save conversations history and restore their latest research context after an API restart.
+11. Trace LangGraph, DeepSeek, and MCP activity with optional Laminar observability for debugging and performance analysis.
 
 The application is designed for research assistance and is not a substitute for reviewing original publications. It does not provide authoritative bibliographic data, and its results may be incomplete or contain metadata inherited from external scholarly records. Always verify important claims, authorship, publication details, and references against the original publication.
 
@@ -143,7 +144,8 @@ The graph separates understanding, retrieval, generation, and verification into 
 4. `route_request` selects publication search, author search, current-context reuse, work-level
    exploration, or recovery.
 5. A selected MCP node obtains structured research data.
-6. `select_evidence` bounds the publication context sent to the language model.
+6. `select_evidence` sends every publication by default, or only the papers the user has kept
+   selected for a follow-up.
 7. `execute_research_action` generates an answer or creates deterministic reference exports.
 8. `verify_answer` removes impossible citation markers.
 9. `recover_or_clarify` returns a clean product response when no valid action can be completed.

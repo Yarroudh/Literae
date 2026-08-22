@@ -311,6 +311,31 @@ async def test_generation_receives_every_retrieved_publication() -> None:
 
 
 @pytest.mark.asyncio
+async def test_follow_up_generation_uses_only_selected_publications() -> None:
+    generator = FakeAnswerGenerator()
+    workflow = LangGraphResearchWorkflow(
+        query_interpreter=FakeInterpreter(),
+        research_searcher=ManyResultsSearcher(),
+        answer_generator=generator,
+    )
+    await workflow.run(
+        conversation_id="conversation-selected-evidence",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(resultsLimit=12),
+    )
+
+    answer, results, _, _, _, _, _ = await workflow.run(
+        conversation_id="conversation-selected-evidence",
+        message="Compare the methods and findings across these papers",
+        filters=ResearchFilters(resultsLimit=12),
+        included_result_ids=["W2", "W12"],
+    )
+
+    assert len(results) == 12
+    assert answer.endswith("with 2 paper.")
+
+
+@pytest.mark.asyncio
 async def test_review_request_uses_semantic_genre_then_retries_broader_topic() -> None:
     searcher = ReviewFallbackSearcher()
     workflow = LangGraphResearchWorkflow(

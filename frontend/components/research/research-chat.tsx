@@ -22,6 +22,7 @@ type ResearchTurn = {
   showAuthors: boolean;
   contextType: "papers" | "authors" | null;
   suggestions: string[];
+  includedResultIds: string[];
   failed?: boolean;
 };
 
@@ -32,6 +33,7 @@ export function ResearchChat() {
   const [pendingQuery, setPendingQuery] = useState("");
   const [conversationId, setConversationId] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+  const [includedPaperIds, setIncludedPaperIds] = useState<string[]>([]);
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -56,8 +58,11 @@ export function ResearchChat() {
     setPendingQuery(query);
     setIsLoading(true);
     try {
-      const response = await requestResearch(query, filters, conversationId);
+      const response = await requestResearch(query, filters, conversationId, {
+        ...(conversationId && includedPaperIds.length > 0 && { includedResultIds: includedPaperIds }),
+      });
       setConversationId(response.conversationId);
+      setIncludedPaperIds(response.includedResultIds ?? response.results.map((result) => result.id));
       setTurns((current) => [...current, {
         id: createTurnId(),
         query,
@@ -68,6 +73,7 @@ export function ResearchChat() {
         showAuthors: response.showAuthors ?? false,
         contextType: response.contextType ?? null,
         suggestions: response.suggestions ?? [],
+        includedResultIds: response.includedResultIds ?? response.results.map((result) => result.id),
       }]);
     } catch (error) {
       const answer = error instanceof ChatApiError
@@ -83,6 +89,7 @@ export function ResearchChat() {
         showAuthors: false,
         contextType: null,
         suggestions: [],
+        includedResultIds: [],
         failed: true,
       }]);
     } finally {
@@ -104,6 +111,7 @@ export function ResearchChat() {
     setConversationId(undefined);
     setFilters(INITIAL_FILTERS);
     setSuggestedTopics(sampleResearchTopics());
+    setIncludedPaperIds([]);
   }
 
   async function openHistory(id: string) {
@@ -112,7 +120,7 @@ export function ResearchChat() {
     try {
       const conversation = await getConversation(id);
       setConversationId(conversation.id);
-      setTurns(conversation.turns.map((turn) => ({
+      const restoredTurns = conversation.turns.map((turn) => ({
         id: turn.id,
         query: turn.query,
         answer: turn.answer,
@@ -122,12 +130,38 @@ export function ResearchChat() {
         showAuthors: turn.showAuthors ?? false,
         contextType: turn.contextType ?? null,
         suggestions: turn.suggestions ?? [],
-      })));
+        includedResultIds: turn.includedResultIds?.length
+          ? turn.includedResultIds
+          : turn.results.map((result) => result.id),
+      }));
+      setTurns(restoredTurns);
+      const latestPaperTurn = [...restoredTurns].reverse().find((turn) => turn.results.length > 0);
+      setIncludedPaperIds(
+        latestPaperTurn?.includedResultIds.length
+          ? latestPaperTurn.includedResultIds
+          : latestPaperTurn?.results.map((result) => result.id) ?? [],
+      );
     } catch {
       // Keep the current chat intact when a saved conversation cannot be loaded.
     } finally {
       setIsLoading(false);
     }
+  }
+
+  const activePaperTurn = [...turns].reverse().find(
+    (turn) => !turn.failed && turn.showResults && turn.results.length > 0,
+  );
+  const activePaperTurnId = activePaperTurn?.id;
+
+  function setPaperIncluded(resultId: string, selected: boolean) {
+    setIncludedPaperIds((current) => {
+      if (selected) {
+        const included = new Set([...current, resultId]);
+        return (activePaperTurn?.results ?? []).map((result) => result.id).filter((id) => included.has(id));
+      }
+      if (current.length <= 1) return current;
+      return current.filter((id) => id !== resultId);
+    });
   }
 
   return (
@@ -167,7 +201,14 @@ export function ResearchChat() {
                     {turn.failed ? (
                       <button type="button" onClick={() => retry(turn.id, turn.query)} disabled={isLoading} className="mt-4 rounded-[9px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold transition hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50">Try again</button>
                     ) : turn.showResults && turn.results.length > 0 ? (
-                      <div className="mt-5 rounded-[15px] border border-[var(--line)] bg-[var(--surface)] px-4 pt-5 sm:px-5">{turn.results.map((result, resultIndex) => <ResultCard key={result.id} result={result} citationNumber={resultIndex + 1} />)}</div>
+                      <div className="mt-5 rounded-[15px] border border-[var(--line)] bg-[var(--surface)] px-4 pt-5 sm:px-5">{turn.results.map((result, resultIndex) => {
+                        const selectable = turn.id === activePaperTurnId;
+                        const selected = !selectable || includedPaperIds.includes(result.id);
+                        const citationNumber = selectable
+                          ? (selected ? includedPaperIds.indexOf(result.id) + 1 : null)
+                          : resultIndex + 1;
+                        return <ResultCard key={result.id} result={result} citationNumber={citationNumber} selectable={selectable} selected={selected} onSelectedChange={(value) => setPaperIncluded(result.id, value)} />;
+                      })}</div>
                     ) : turn.showResults ? (
                       <p className="mt-4 rounded-[15px] border border-[var(--line)] p-4 text-sm text-[var(--muted)]">No closely related works were returned. Try broader terms or adjust the research filters.</p>
                     ) : null}
@@ -175,7 +216,13 @@ export function ResearchChat() {
                       <div className="mt-5 grid gap-3">{turn.authors.map((author) => <AuthorCard key={author.id} author={author} />)}</div>
                     )}
                     {!turn.failed && turn.contextType === "papers" && turn.results.length > 0 && index === turns.length - 1 && (
-                      <PaperFollowUpSuggestions suggestions={turn.suggestions} onSelect={(suggestion) => void send(suggestion)} />
+                      <PaperFollowUpSuggestions
+                        suggestions={turn.suggestions}
+                        selectedCount={includedPaperIds.length}
+                        totalCount={turn.results.length}
+                        onSelectAll={() => setIncludedPaperIds(turn.results.map((result) => result.id))}
+                        onSelect={(suggestion) => void send(suggestion)}
+                      />
                     )}
                     {!turn.failed && turn.contextType === "authors" && turn.authors.length > 0 && index === turns.length - 1 && (
                       <AuthorFollowUpSuggestions authors={turn.authors} suggestions={turn.suggestions} onSelect={(suggestion) => void send(suggestion)} />
@@ -227,12 +274,19 @@ const FOLLOW_UP_SUGGESTIONS = [
 
 const REFERENCE_STYLES = ["APA 7", "MLA 9", "IEEE", "Chicago", "Harvard", "Vancouver"];
 
-function PaperFollowUpSuggestions({ suggestions, onSelect }: { suggestions: string[]; onSelect: (suggestion: string) => void }) {
+function PaperFollowUpSuggestions({ suggestions, selectedCount, totalCount, onSelectAll, onSelect }: { suggestions: string[]; selectedCount: number; totalCount: number; onSelectAll: () => void; onSelect: (suggestion: string) => void }) {
   const [referenceStyle, setReferenceStyle] = useState(REFERENCE_STYLES[0]);
 
   return (
     <div className="mt-5" aria-label="Suggested follow-up questions">
       <p className="mb-2 text-xs font-medium text-[var(--muted)]">Continue exploring</p>
+      <div className="mb-2 flex max-w-md items-center justify-between gap-3 rounded-[11px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5">
+        <div>
+          <p className="text-xs font-semibold text-[var(--ink)]">Papers considered</p>
+          <p className="text-[11px] text-[var(--muted)]">{selectedCount} of {totalCount} selected · use the checkboxes above to ignore papers</p>
+        </div>
+        {selectedCount < totalCount && <button type="button" onClick={onSelectAll} className="shrink-0 text-xs font-semibold text-[var(--accent)] hover:underline">Select all</button>}
+      </div>
       <div className="mb-2 flex max-w-md items-center gap-2 rounded-[11px] border border-[var(--line)] bg-[var(--surface)] p-1.5">
         <label htmlFor="reference-style" className="sr-only">Reference style</label>
         <select

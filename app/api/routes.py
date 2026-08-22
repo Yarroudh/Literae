@@ -65,6 +65,17 @@ async def chat(
     try:
         message = input_guard.validate(request.message)
         prior_context = await history.latest_context(conversation_id)
+        if request.included_result_ids and prior_context:
+            available_ids = {
+                str(result.get("id", ""))
+                for result in prior_context.get("results", [])
+                if isinstance(result, dict)
+            }
+            if not set(request.included_result_ids).issubset(available_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The selected publications are no longer available.",
+                )
         (
             answer,
             results,
@@ -78,11 +89,17 @@ async def chat(
             message=message,
             filters=request.filters,
             context=prior_context,
+            included_result_ids=request.included_result_ids,
+        )
+        considered_results = (
+            [result for result in results if result.id in set(request.included_result_ids)]
+            if request.included_result_ids and not show_results
+            else results
         )
         answer = output_guard.validate(
             request=message,
             answer=answer,
-            publications=results,
+            publications=considered_results,
         )
     except InputGuardrailError as error:
         raise HTTPException(
@@ -124,6 +141,11 @@ async def chat(
         showAuthors=show_authors,
         contextType=context_type,
         suggestions=suggestions,
+        includedResultIds=(
+            [result.id for result in results]
+            if show_results or not request.included_result_ids
+            else request.included_result_ids
+        ),
     )
     await history.save_turn(
         conversation_id,

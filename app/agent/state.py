@@ -24,3 +24,4 @@ class ResearchState(TypedDict):
     action: NotRequired[str]
     suggestions: NotRequired[list[str]]
     previous_answer: NotRequired[str]
+    included_result_ids: NotRequired[list[str]]

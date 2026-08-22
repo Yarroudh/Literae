@@ -1,13 +1,28 @@
 import type { ResearchResult } from "@/types/research";
 import { ChevronDownIcon } from "@/components/ui/icons";
 
-export function ResultCard({ result, citationNumber }: { result: ResearchResult; citationNumber: number }) {
+type ResultCardProps = {
+  result: ResearchResult;
+  citationNumber: number | null;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelectedChange?: (selected: boolean) => void;
+};
+
+export function ResultCard({ result, citationNumber, selectable = false, selected = true, onSelectedChange }: ResultCardProps) {
   return (
-    <article id={`reference-${citationNumber}`} className="border-b border-[var(--line)] py-5 first:pt-0 last:border-b-0">
+    <article id={citationNumber ? `reference-${citationNumber}` : undefined} className={`border-b border-[var(--line)] py-5 first:pt-0 last:border-b-0 ${selected ? "" : "opacity-55"}`}>
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 shrink-0 text-sm font-semibold text-[var(--accent)]" aria-label={`Reference ${citationNumber}`}>
-          [{citationNumber}]
-        </span>
+        {selectable ? (
+          <label className="mt-0.5 flex shrink-0 items-center gap-2" title={selected ? "Included in follow-up analysis" : "Ignored in follow-up analysis"}>
+            <input type="checkbox" checked={selected} onChange={(event) => onSelectedChange?.(event.target.checked)} className="size-4 accent-[var(--accent)]" aria-label={`${selected ? "Ignore" : "Include"} ${result.title}`} />
+            <span className="min-w-7 text-sm font-semibold text-[var(--accent)]">{citationNumber ? `[${citationNumber}]` : "—"}</span>
+          </label>
+        ) : (
+          <span className="mt-0.5 shrink-0 text-sm font-semibold text-[var(--accent)]" aria-label={`Reference ${citationNumber}`}>
+            [{citationNumber}]
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
             <span>{result.type}</span><span aria-hidden="true">·</span><span>{result.year}</span>

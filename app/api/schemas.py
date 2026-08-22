@@ -27,6 +27,9 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=MAX_RESEARCH_REQUEST_LENGTH)
     filters: ResearchFilters = Field(default_factory=ResearchFilters)
     conversation_id: str | None = Field(default=None, alias="conversationId", max_length=100)
+    included_result_ids: list[str] | None = Field(
+        default=None, alias="includedResultIds", min_length=1, max_length=100
+    )
 
 
 class ResearchResult(BaseModel):
@@ -71,6 +74,7 @@ class ChatResponse(BaseModel):
     show_authors: bool = Field(default=False, alias="showAuthors")
     context_type: Literal["papers", "authors"] | None = Field(default=None, alias="contextType")
     suggestions: list[str] = Field(default_factory=list)
+    included_result_ids: list[str] = Field(default_factory=list, alias="includedResultIds")
 
 
 class HealthResponse(BaseModel):
@@ -91,6 +95,7 @@ class HistoryTurn(BaseModel):
     show_authors: bool = Field(default=False, alias="showAuthors")
     context_type: Literal["papers", "authors"] | None = Field(default=None, alias="contextType")
     suggestions: list[str] = Field(default_factory=list)
+    included_result_ids: list[str] = Field(default_factory=list, alias="includedResultIds")
     created_at: datetime = Field(alias="createdAt")
 
 

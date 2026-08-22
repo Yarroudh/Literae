@@ -16,11 +16,13 @@ flowchart TB
         UI[Research chat UI]
         Filters[Research filters]
         Cards[Publication and author cards]
+        Selection[Paper inclusion checkboxes]
         HistoryUI[Conversation history]
         ApiClient[Typed API client<br/>120-second browser timeout]
         UI --> ApiClient
         Filters --> ApiClient
         ApiClient --> Cards
+        Cards --> Selection --> ApiClient
         HistoryUI --> ApiClient
     end
 
@@ -106,7 +108,10 @@ flowchart TD
     Referenced --> Evidence
     Reuse --> Evidence
 
-    Evidence --> AllPapers[Pass every retrieved paper<br/>with evidence scope]
+    Evidence --> Selection{Paper selection supplied?}
+    Selection -->|no, default| AllPapers[Pass every retrieved paper<br/>with evidence scope]
+    Selection -->|yes| IncludedPapers[Pass only checked papers<br/>and renumber citations]
+    IncludedPapers --> Action
     AllPapers --> Action[execute_research_action]
 
     Action -->|reference style| RefFormat[Deterministic references]
@@ -149,7 +154,7 @@ sequenceDiagram
 
     U->>UI: Submit message and filters
     UI->>UI: Add optimistic user turn and loading state
-    UI->>API: POST /chat with message, filters, conversationId
+    UI->>API: POST /chat with message, filters, conversationId,<br/>and optional includedResultIds
     API->>IG: Normalize and validate message
     IG-->>API: Validated message
     API->>DB: Load latest conversation context
@@ -183,8 +188,9 @@ sequenceDiagram
         G->>G: Reuse previous publications or authors
     end
 
-    G->>G: Select all returned publications
-    G->>G: Label each paper metadata_only or abstract_and_metadata
+    G->>G: Keep the complete publication set in context
+    G->>G: Filter evidence to checked IDs, or all by default
+    G->>G: Renumber selected papers and label evidence scopes
 
     alt Reference or export request
         G->>G: Format all records deterministically
@@ -229,7 +235,8 @@ sequenceDiagram
 
 ## Evidence and grounding
 
-Every retrieved publication is passed into research generation. Before serialization, each record is
+By default, every retrieved publication is passed into research generation. When the user changes
+the selection, every selected publication is passed instead. Before serialization, each record is
 assigned one of two scopes:
 
 - `abstract_and_metadata`: the model may make paper-specific claims supported by that paper's
@@ -239,7 +246,13 @@ assigned one of two scopes:
 
 If every selected paper is metadata-only, the graph bypasses generation and returns a deterministic
 overview explaining that abstracts or full text are required for substantive analysis. References and
-exports always use all current publications and never depend on the model.
+exports use all selected publications and never depend on the model.
+
+By default, every current publication is selected. The user can uncheck papers on the active result
+cards. Follow-up requests send the checked OpenAlex IDs as `includedResultIds`; LangGraph filters the
+analysis evidence and deterministic exports to that subset while retaining the complete result set in
+conversation history. Checked papers are renumbered in result order so answer citations continue to
+match the visible cards. At least one paper always remains selected.
 
 ## Reliability, persistence, and observability
 
