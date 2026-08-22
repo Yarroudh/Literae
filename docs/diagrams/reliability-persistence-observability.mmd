@@ -1,0 +1,13 @@
+flowchart LR
+    Request[Research operation] --> Cache{TTL cache hit?}
+    Cache -->|yes| Cached[Return cached normalized result]
+    Cache -->|no| Attempt[Call OpenAlex]
+    Attempt -->|success| Store[Normalize and cache]
+    Attempt -->|timeout, 429, or 5xx| Retry{Attempts remain?}
+    Retry -->|yes| Backoff[Exponential backoff] --> Attempt
+    Retry -->|no| Error[Typed API error]
+    Store --> Result[Return result]
+    Turn[Successful chat turn] --> JSONB[(PostgreSQL JSONB payload)]
+    JSONB --> Restore[Restore latest context after restart]
+    Graph[Graph and node execution] -. spans .-> Trace[Laminar]
+    LLM[Instrumented DeepSeek calls] -. spans .-> Trace

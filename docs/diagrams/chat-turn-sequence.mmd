@@ -1,0 +1,70 @@
+sequenceDiagram
+    autonumber
+    actor U as Researcher
+    participant UI as Next.js chat
+    participant API as FastAPI /chat/stream
+    participant IG as Input guard
+    participant DB as History repository
+    participant G as LangGraph
+    participant DS as DeepSeek V4 Pro
+    participant MCP as MCP research tools
+    participant OA as OpenAlex
+    participant OG as Output guard
+    U->>UI: Submit message and filters
+    UI->>UI: Add optimistic user turn and loading state
+    UI->>API: POST /chat/stream with message, filters, conversationId,<br/>and optional includedResultIds
+    API-->>UI: NDJSON progress status
+    API->>IG: Normalize and validate message
+    IG-->>API: Validated message
+    API->>DB: Load latest conversation context
+    DB-->>API: Previous papers, authors, answer, context type
+    API->>G: Run turn with message, filters, and prior context
+    alt Unambiguous follow-up on current papers
+        G->>G: Build deterministic follow-up plan
+        Note over G: Avoid redundant planner and search calls
+    else New or ambiguous request
+        G->>DS: Interpret request as structured SearchPlan
+        DS-->>G: Intent, query, filters, work ID, sort
+    end
+    G->>G: Merge extracted constraints with UI filters
+    Note over G: Explicit UI filters take precedence
+    G->>G: Resolve context, validate, and choose route
+    alt Search or work exploration route
+        G->>MCP: Call typed research tool
+        MCP->>OA: HTTP request with normalized filters
+        OA-->>MCP: Scholarly records
+        MCP-->>G: Validated publications or authors
+        opt Focused review search returned no records
+            G->>MCP: Retry broader underlying topic
+            MCP->>OA: Broader search
+            OA-->>MCP: Scholarly records
+            MCP-->>G: Validated publications
+        end
+    else Current-context route
+        G->>G: Reuse previous publications or authors
+    end
+    G->>G: Keep the complete publication set in context
+    G->>G: Filter evidence to checked IDs, or all by default
+    G->>G: Renumber selected papers and label evidence scopes
+    alt Reference or export request
+        G->>G: Format all records deterministically
+    else All selected papers lack abstracts
+        G->>G: Produce safe metadata-only overview
+    else Research analysis or synthesis
+        G->>DS: Prompt with every publication and grounding rules
+        DS-->>G: Grounded answer with numeric citations
+    else Author overview
+        G->>DS: Prompt with author profile facts
+        DS-->>G: Concise author answer
+    end
+    G->>G: Remove impossible citation markers
+    G->>G: Generate contextual follow-up suggestions
+    G-->>API: Answer, results, authors, flags, suggestions
+    API->>OG: Validate output integrity and citation range
+    OG-->>API: Validated answer
+    API->>DB: Save complete successful turn as JSONB
+    DB-->>API: Saved
+    API-->>UI: Incremental answer_delta events
+    API-->>UI: Final validated ChatResponse event
+    UI->>UI: Validate response and render answer and cards
+    UI-->>U: Completed research turn

@@ -1,0 +1,46 @@
+flowchart TD
+    Start([Start turn]) --> Interpret[interpret_request]
+    Interpret -->|unambiguous follow-up| LocalPlan[Deterministic context plan]
+    Interpret -->|new or ambiguous request| LLMPlan[DeepSeek SearchPlan]
+    LocalPlan --> Merge[Merge plan and UI filters]
+    LLMPlan --> Merge
+    Merge --> Context[resolve_context]
+    Context --> Validate[validate_search_plan]
+    Validate --> Route[route_request]
+    Route -->|topic, author works, more results| Search[search_publications]
+    Route -->|researcher profiles| Authors[search_authors]
+    Route -->|one work| Details[get_work_details]
+    Route -->|similar works| Related[find_related_works]
+    Route -->|papers citing work| Citing[get_citing_works]
+    Route -->|work reference list| Referenced[get_referenced_works]
+    Route -->|current papers| Reuse[Reuse stored results]
+    Route -->|invalid or unsupported| Recover[recover_or_clarify]
+    Search --> ReviewFallback{Review query<br/>returned zero?}
+    ReviewFallback -->|yes| BroadSearch[Retry underlying topic]
+    ReviewFallback -->|no| Evidence[select_evidence]
+    BroadSearch --> Evidence
+    Authors --> Evidence
+    Details --> Evidence
+    Related --> Evidence
+    Citing --> Evidence
+    Referenced --> Evidence
+    Reuse --> Evidence
+    Evidence --> Selection{Paper selection supplied?}
+    Selection -->|no, default| AllPapers[Pass every retrieved paper<br/>with evidence scope]
+    Selection -->|yes| IncludedPapers[Pass only checked papers<br/>and renumber citations]
+    IncludedPapers --> Action
+    AllPapers --> Action[execute_research_action]
+    Action -->|reference style| RefFormat[Deterministic references]
+    Action -->|BibTeX or RIS| Export[Deterministic export]
+    Action -->|author overview| AuthorAnswer[DeepSeek author answer]
+    Action -->|no abstracts available| MetadataAnswer[Deterministic metadata-only answer]
+    Action -->|research synthesis| ResearchAnswer[DeepSeek grounded answer]
+    Action -->|no usable results| Recover
+    RefFormat --> Verify[verify_answer]
+    Export --> Verify
+    AuthorAnswer --> Verify
+    MetadataAnswer --> Verify
+    ResearchAnswer --> Verify
+    Verify --> Suggestions[generate_followups]
+    Recover --> Suggestions
+    Suggestions --> End([Return workflow state])

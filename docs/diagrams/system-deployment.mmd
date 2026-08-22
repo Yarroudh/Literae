@@ -1,0 +1,55 @@
+flowchart TB
+    User([Researcher])
+    subgraph Public[Public edge]
+        Caddy[Caddy reverse proxy<br/>HTTPS and TLS]
+    end
+    subgraph Frontend[Next.js frontend container]
+        UI[Research chat UI]
+        Filters[Research filters]
+        Cards[Publication and author cards]
+        Selection[Paper inclusion controls]
+        HistoryUI[Conversation history]
+        ApiClient[Typed API client<br/>120-second browser timeout]
+        UI --> ApiClient
+        Filters --> ApiClient
+        ApiClient --> Cards
+        Cards --> Selection --> ApiClient
+        HistoryUI --> ApiClient
+    end
+    subgraph Backend[FastAPI backend container]
+        Routes[REST API<br/>chat, health, conversations]
+        InputGuard[Input guardrail]
+        Workflow[LangGraph research workflow]
+        OutputGuard[Output guardrail]
+        HistoryRepo[History repository]
+        DeepSeek[DeepSeek V4 Pro client]
+        subgraph ResearchBoundary[In-process MCP boundary]
+            MCPClient[Typed MCP client]
+            MCPServer[MCP research server]
+            Tools[Research tool adapter]
+            MCPClient -->|structured tool call| MCPServer
+            MCPServer --> Tools
+        end
+        Resilience[Retry and TTL cache]
+        OpenAlexClient[OpenAlex client and normalizer]
+        Routes --> InputGuard --> Workflow
+        Workflow --> DeepSeek
+        Workflow --> MCPClient
+        Tools --> Resilience --> OpenAlexClient
+        Workflow --> OutputGuard --> Routes
+        Routes <--> HistoryRepo
+    end
+    subgraph Data[Data and external services]
+        PostgreSQL[(PostgreSQL<br/>conversations and JSONB turns)]
+        OpenAlex[(OpenAlex API<br/>works, authors, citations)]
+        DeepSeekAPI[(DeepSeek API<br/>planning and generation)]
+        Laminar[(Laminar<br/>optional traces)]
+    end
+    User --> Caddy --> UI
+    ApiClient -->|JSON over HTTPS| Caddy
+    Caddy --> Routes
+    HistoryRepo <--> PostgreSQL
+    OpenAlexClient <--> OpenAlex
+    DeepSeek <--> DeepSeekAPI
+    Workflow -. graph and node spans .-> Laminar
+    DeepSeek -. instrumented LLM calls .-> Laminar
