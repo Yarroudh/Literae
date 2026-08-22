@@ -153,3 +153,14 @@ def test_prompt_marks_missing_abstracts_as_metadata_only() -> None:
     assert '"summary": null' in prompt
     assert "Do not infer or recall its study location, methods, findings" in prompt
     assert "even if you know the paper from training" in prompt
+
+
+def test_prompt_requires_considering_all_publications() -> None:
+    prompt = build_research_prompt(
+        "Synthesize these papers",
+        [{"title": f"Paper {index}", "summary": "An abstract."} for index in range(1, 13)],
+    )
+
+    assert '"publication_index": 12' in prompt
+    assert "Consider every publication in the list" in prompt
+    assert "only the first ten" in prompt

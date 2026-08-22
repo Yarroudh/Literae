@@ -138,6 +138,39 @@ class MetadataOnlySearcher(FakeSearcher):
         ]
 
 
+class ReviewFallbackSearcher(FakeSearcher):
+    async def search(
+        self, query: str, filters: ResearchFilters, *, page: int = 1
+    ) -> list[ResearchResult]:
+        self.calls.append((query, page))
+        if "literature review" in query.casefold():
+            return []
+        return [
+            ResearchResult(
+                id="W-review",
+                title="A Review of Digital Twins for Cities",
+                authors=["Ada Researcher"],
+                year=2024,
+                source="Example Journal",
+                type="article",
+                openAccess=True,
+                citedByCount=1,
+                topics=["Digital Twins"],
+                summary="This article reviews digital twins for cities.",
+            )
+        ]
+
+
+class ReviewInterpreter(FakeInterpreter):
+    async def interpret_search(self, message: str) -> SearchPlan:
+        self.calls.append(message)
+        return SearchPlan(
+            query="Digital Twins for Cities",
+            work_type="literature review",
+            intent="topic_search",
+        )
+
+
 class FakeAnswerGenerator:
     def __init__(self) -> None:
         self.paper_calls = 0
@@ -256,6 +289,47 @@ async def test_reference_export_includes_more_than_ten_current_papers() -> None:
     assert "[11] Ada Researcher. (2024). Paper 11." in answer
     assert "[12] Ada Researcher. (2024). Paper 12." in answer
     assert "None" not in answer
+
+
+@pytest.mark.asyncio
+async def test_generation_receives_every_retrieved_publication() -> None:
+    generator = FakeAnswerGenerator()
+    workflow = LangGraphResearchWorkflow(
+        query_interpreter=FakeInterpreter(),
+        research_searcher=ManyResultsSearcher(),
+        answer_generator=generator,
+    )
+
+    answer, results, _, _, _, _, _ = await workflow.run(
+        conversation_id="conversation-all-evidence",
+        message="Find papers about urban digital twins",
+        filters=ResearchFilters(resultsLimit=12),
+    )
+
+    assert len(results) == 12
+    assert answer.endswith("with 12 paper.")
+
+
+@pytest.mark.asyncio
+async def test_review_request_uses_semantic_genre_then_retries_broader_topic() -> None:
+    searcher = ReviewFallbackSearcher()
+    workflow = LangGraphResearchWorkflow(
+        query_interpreter=ReviewInterpreter(),
+        research_searcher=searcher,
+        answer_generator=FakeAnswerGenerator(),
+    )
+
+    _, results, _, _, _, _, _ = await workflow.run(
+        conversation_id="conversation-review-search",
+        message="Find literature reviews about Digital Twins for Cities",
+        filters=ResearchFilters(),
+    )
+
+    assert len(results) == 1
+    assert searcher.calls == [
+        ("Digital Twins for Cities literature review", 1),
+        ("Digital Twins for Cities", 1),
+    ]
 
 
 @pytest.mark.asyncio

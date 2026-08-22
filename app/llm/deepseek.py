@@ -233,6 +233,8 @@ for a follow-up overview of authors represented in the current papers. Allowed o
 open, closed, or null. Allowed sort values are relevance, newest, oldest, cited, or null.
 Use ISO 639-1 language codes. Extract only constraints stated or clearly implied by the user; otherwise
 use null. Do not treat instruction words such as "find papers" as topic terms. When the user asks for
+literature reviews, systematic reviews, scoping reviews, narrative reviews, or review papers, keep the
+review genre in query and leave work_type null; these are search genres, not OpenAlex work types. When the user asks for
 an author's papers, set intent to author_publications, extract the person's full name into author, and
 leave query empty. For bibliography, result_analysis, and author_overview follow-ups, leave query empty
 unless the user introduces a new topic. For requests about author profiles, metrics, h-index, ORCID, or
@@ -275,6 +277,9 @@ Grounding rules:
   relevant, state plainly that its abstract is unavailable.
 - If the request requires details that are unavailable, say what cannot be established instead of
   completing the gap from prior knowledge.
+- Consider every publication in the list before answering. You may focus the written analysis on the
+  most relevant publications, but do not assume that only the first ten were available. Briefly state
+  a principled relevance criterion when excluding papers from a requested in-depth comparison.
 
 Do not invent findings or citations. Do not describe how the publications were obtained or refer to them as evidence,
 context, records, or data provided to you."""

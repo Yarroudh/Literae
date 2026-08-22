@@ -1,3 +1,4 @@
+import re
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
@@ -49,9 +50,32 @@ def merge_search_plan(
         values[field_name] = explicit_value if explicit_value is not None else extracted_value
 
     query = extracted.query.strip()
+    review_genre = _review_genre(message)
+    if review_genre:
+        # OpenAlex does not expose literature/systematic/scoping review as work
+        # types. Keep the genre in full-text search instead of emitting an invalid
+        # or overly restrictive `type:` filter.
+        if explicit_filters.work_type is None:
+            values["work_type"] = None
+        if review_genre.casefold() not in query.casefold():
+            query = f"{query} {review_genre}".strip()
     if extracted.intent == "author_publications" and extracted.author:
         query = ""
     fallback_query = (
         "" if values.get("author") and extracted.intent == "author_publications" else message
     )
     return query or fallback_query, ResearchFilters(**values)
+
+
+def _review_genre(message: str) -> str | None:
+    match = re.search(
+        r"\b(systematic|scoping|literature|narrative|umbrella)\s+reviews?\b|\breview papers?\b",
+        message,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    normalized = " ".join(match.group(0).casefold().split())
+    if normalized == "review paper" or normalized == "review papers":
+        return "review"
+    return normalized.removesuffix("s")

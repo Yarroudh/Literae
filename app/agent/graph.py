@@ -272,6 +272,13 @@ class LangGraphResearchWorkflow:
             results = await self._research_tools.search_publications(
                 state["search_query"], state["search_filters"], page=state.get("page", 1)
             )
+            broader_query = _broader_review_query(state["search_query"])
+            if not results and broader_query:
+                results = await self._research_tools.search_publications(
+                    broader_query,
+                    state["search_filters"],
+                    page=state.get("page", 1),
+                )
         return {
             "results": [result.model_dump(mode="json", by_alias=True) for result in results],
             "context_type": "papers",
@@ -311,9 +318,10 @@ class LangGraphResearchWorkflow:
         return _publication_state(results)
 
     def _select_evidence(self, state: ResearchState) -> dict[str, object]:
-        # Retrieval and display can be broader, but generation always uses the ten
-        # highest-ranked works from the current OpenAlex page to bound model context.
-        return {"selected_results": state.get("results", [])[:10]}
+        # Every retrieved publication is made available for analysis. The model may
+        # prioritize the most relevant works, but it must make that choice from the
+        # complete result set rather than an arbitrary positional cutoff.
+        return {"selected_results": state.get("results", [])}
 
     async def _execute_research_action(self, state: ResearchState) -> dict[str, object]:
         if state.get("validation_issue"):
@@ -472,6 +480,17 @@ def _context_followup_plan(message: str, state: ResearchState) -> SearchPlan | N
     if _is_revision_request(message) or _is_current_results_request(message):
         return SearchPlan(intent="result_analysis")
     return None
+
+
+def _broader_review_query(query: str) -> str | None:
+    broader = re.sub(
+        r"\b(?:systematic|scoping|literature|narrative|umbrella)\s+reviews?\b|\breview papers?\b",
+        "",
+        query,
+        flags=re.IGNORECASE,
+    )
+    broader = " ".join(broader.split()).strip(" ,;:-")
+    return broader if broader and broader.casefold() != query.strip().casefold() else None
 
 
 def _is_current_results_request(message: str) -> bool:
