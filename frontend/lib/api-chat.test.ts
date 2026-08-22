@@ -27,7 +27,7 @@ describe("requestResearch", () => {
     expect(url).toBe("http://api.test/chat");
     expect(JSON.parse(String(init?.body))).toEqual({
       message: "battery recycling",
-      filters: { fromYear: 2021, openAccess: "open", author: "Jane Doe", sort: "relevance", resultsLimit: 10 },
+      filters: { fromYear: 2021, openAccess: "open", author: "Jane Doe", sort: "relevance", resultsLimit: 25 },
     });
   });
 

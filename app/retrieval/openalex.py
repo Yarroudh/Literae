@@ -45,7 +45,7 @@ class OpenAlexClient:
         base_url: str = "https://api.openalex.org",
         api_key: str | None = None,
         email: str | None = None,
-        results_limit: int = 10,
+        results_limit: int = 25,
         timeout_seconds: float = 15,
         client: httpx.AsyncClient | None = None,
     ) -> None:

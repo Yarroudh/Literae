@@ -352,7 +352,7 @@ Copy `.env.example` to `.env`.
 | --- | --- | --- | --- |
 | `OPENALEX_API_KEY` | Yes | — | OpenAlex API key |
 | `OPENALEX_EMAIL` | Yes | — | Contact email for polite API usage |
-| `OPENALEX_RESULTS_LIMIT` | Recommended | `10` | Publications returned per page |
+| `OPENALEX_RESULTS_LIMIT` | Recommended | `25` | Publications returned per page |
 | `OPENALEX_TIMEOUT_SECONDS` | Recommended | `15` | OpenAlex timeout |
 | `OPENALEX_CACHE_TTL_SECONDS` | No | `300` | In-memory result cache lifetime |
 | `SERVICE_RETRY_ATTEMPTS` | No | `3` | Transient OpenAlex attempts |

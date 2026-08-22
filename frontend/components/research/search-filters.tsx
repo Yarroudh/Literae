@@ -18,7 +18,7 @@ export function SearchFilters({ filters, onChange }: SearchFiltersProps) {
               <button key={limit} type="button" onClick={() => onChange("resultsLimit", limit)} aria-pressed={filters.resultsLimit === limit} className={`h-10 rounded-xl border text-sm font-semibold transition ${filters.resultsLimit === limit ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--line)] bg-[var(--surface)] text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}>{limit}</button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-[var(--muted)]">All retrieved papers can be displayed. Literae uses only the 10 highest-ranked papers when composing an answer.</p>
+          <p className="mt-2 text-[11px] leading-4 text-[var(--muted)]">All retrieved papers are displayed and considered when Literae composes an answer.</p>
         </div>
         <Field label="Order by"><select className={controlClass} value={filters.sort} onChange={(event) => onChange("sort", event.target.value)}><option value="relevance">Most relevant</option><option value="cited">Most cited</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></Field>
         <Field label="Access"><select className={controlClass} value={filters.openAccess} onChange={(event) => onChange("openAccess", event.target.value)}><option value="all">Any access</option><option value="open">Open access</option><option value="closed">Closed access</option></select></Field>

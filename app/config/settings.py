@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     openalex_base_url: str = "https://api.openalex.org"
     openalex_api_key: SecretStr | None = None
     openalex_email: str | None = None
-    openalex_results_limit: int = Field(default=10, ge=1, le=25)
+    openalex_results_limit: int = Field(default=25, ge=1, le=25)
     openalex_timeout_seconds: float = Field(default=15, gt=0, le=60)
     lmnr_project_api_key: SecretStr | None = None
     lmnr_base_url: str | None = None

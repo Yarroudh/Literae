@@ -13,7 +13,7 @@ export const INITIAL_FILTERS: ResearchFilters = {
   institution: "",
   source: "",
   sort: "relevance",
-  resultsLimit: "10",
+  resultsLimit: "25",
 };
 
 export const RESEARCH_TOPIC_POOL = [
