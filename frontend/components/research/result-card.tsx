@@ -19,17 +19,13 @@ export function ResultCard({ result, citationNumber, selectable = false, selecte
         </span>
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center gap-2 text-xs text-[var(--muted)]">
-            <div className={`flex min-w-0 flex-wrap items-center gap-2 transition-opacity ${selected ? "" : "opacity-45"}`}>
-              <span>{result.type}</span><span aria-hidden="true">·</span><span>{result.year}</span>
-              {result.openAccess && <span className="rounded bg-[var(--accent-soft)] px-2 py-0.5 font-medium text-[var(--accent)]">Open access</span>}
-            </div>
             {selectable && (
               <button
                 type="button"
                 aria-pressed={selected}
                 disabled={selectionDisabled}
                 onClick={() => onSelectedChange?.(!selected)}
-                className={`ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55 ${selected ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white" : "border-[var(--line)] bg-[var(--panel-2)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55 ${selected ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white" : "border-[var(--line)] bg-[var(--panel-2)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
                 aria-label={`${selected ? "Ignore" : "Include"} ${result.title}`}
                 title={selectionDisabled ? "At least one paper must remain included" : selected ? "Ignore in follow-up analysis" : "Include in follow-up analysis"}
               >
@@ -37,6 +33,10 @@ export function ResultCard({ result, citationNumber, selectable = false, selecte
                 <span>{selected ? "Included" : "Include"}</span>
               </button>
             )}
+            <div className={`flex min-w-0 flex-wrap items-center gap-2 transition-opacity ${selected ? "" : "opacity-45"}`}>
+              <span>{result.type}</span><span aria-hidden="true">·</span><span>{result.year}</span>
+              {result.openAccess && <span className="rounded bg-[var(--accent-soft)] px-2 py-0.5 font-medium text-[var(--accent)]">Open access</span>}
+            </div>
           </div>
           <div className={`transition-opacity ${selected ? "" : "opacity-45"}`}>
           <h2 className="text-base font-semibold leading-6 tracking-[-0.01em] text-[var(--ink)] sm:text-[17px]">
