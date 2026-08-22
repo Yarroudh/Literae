@@ -13,20 +13,20 @@ export function ResultCard({ result, citationNumber, selectable = false, selecte
   return (
     <article id={citationNumber ? `reference-${citationNumber}` : undefined} className={`border-b border-[var(--line)] py-5 first:pt-0 last:border-b-0 ${selected ? "" : "opacity-55"}`}>
       <div className="flex items-start gap-3">
-        {selectable ? (
-          <label className="mt-0.5 flex shrink-0 items-center gap-2" title={selected ? "Included in follow-up analysis" : "Ignored in follow-up analysis"}>
-            <input type="checkbox" checked={selected} onChange={(event) => onSelectedChange?.(event.target.checked)} className="size-4 accent-[var(--accent)]" aria-label={`${selected ? "Ignore" : "Include"} ${result.title}`} />
-            <span className="min-w-7 text-sm font-semibold text-[var(--accent)]">{citationNumber ? `[${citationNumber}]` : "—"}</span>
-          </label>
-        ) : (
-          <span className="mt-0.5 shrink-0 text-sm font-semibold text-[var(--accent)]" aria-label={`Reference ${citationNumber}`}>
-            [{citationNumber}]
-          </span>
-        )}
+        <span className="mt-0.5 min-w-7 shrink-0 text-sm font-semibold text-[var(--accent)]" aria-label={citationNumber ? `Reference ${citationNumber}` : "Excluded from follow-up analysis"}>
+          {citationNumber ? `[${citationNumber}]` : "—"}
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-            <span>{result.type}</span><span aria-hidden="true">·</span><span>{result.year}</span>
-            {result.openAccess && <span className="rounded bg-[var(--accent-soft)] px-2 py-0.5 font-medium text-[var(--accent)]">Open access</span>}
+          <div className="mb-1.5 flex items-center gap-2 text-xs text-[var(--muted)]">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span>{result.type}</span><span aria-hidden="true">·</span><span>{result.year}</span>
+              {result.openAccess && <span className="rounded bg-[var(--accent-soft)] px-2 py-0.5 font-medium text-[var(--accent)]">Open access</span>}
+            </div>
+            {selectable && (
+              <label className="ml-auto flex shrink-0 cursor-pointer items-center" title={selected ? "Included in follow-up analysis" : "Ignored in follow-up analysis"}>
+                <input type="checkbox" checked={selected} onChange={(event) => onSelectedChange?.(event.target.checked)} className="size-3.5 accent-[var(--accent)]" aria-label={`${selected ? "Ignore" : "Include"} ${result.title}`} />
+              </label>
+            )}
           </div>
           <h2 className="text-base font-semibold leading-6 tracking-[-0.01em] text-[var(--ink)] sm:text-[17px]">
             {result.doi ? <a href={result.doi} target="_blank" rel="noreferrer" className="hover:text-[var(--accent)] hover:underline">{result.title}</a> : result.title}
