@@ -24,6 +24,7 @@ type ResearchTurn = {
   suggestions: string[];
   includedResultIds: string[];
   failed?: boolean;
+  stopped?: boolean;
 };
 
 export function ResearchChat() {
@@ -92,7 +93,7 @@ export function ResearchChat() {
     } catch (error) {
       const cancelled = error instanceof ChatApiError && error.code === "cancelled";
       const answer = cancelled
-        ? `${partialAnswer}${partialAnswer ? "\n\n" : ""}*Generation stopped.*`
+        ? partialAnswer
         : error instanceof ChatApiError
         ? `${error.message} Please try again.`
         : "Literae could not complete this request. Please try again.";
@@ -108,6 +109,7 @@ export function ResearchChat() {
         suggestions: [],
         includedResultIds: [],
         failed: !cancelled,
+        stopped: cancelled,
       }]);
     } finally {
       if (activeRequestRef.current === controller) activeRequestRef.current = null;
@@ -157,6 +159,7 @@ export function ResearchChat() {
         includedResultIds: turn.includedResultIds?.length
           ? turn.includedResultIds
           : turn.results.map((result) => result.id),
+        stopped: false,
       }));
       setTurns(restoredTurns);
       const latestPaperTurn = [...restoredTurns].reverse().find((turn) => turn.results.length > 0);
@@ -222,6 +225,14 @@ export function ResearchChat() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">Literae</p>
                     <AnswerMarkdown>{turn.answer}</AnswerMarkdown>
+                    {turn.stopped && (
+                      <div className="mt-2 flex items-center gap-1.5 text-sm italic text-[var(--muted)]">
+                        <span>Generation stopped.</span>
+                        <button type="button" onClick={() => retry(turn.id, turn.query)} disabled={isLoading} className="grid size-6 place-items-center rounded-full not-italic transition hover:bg-[var(--panel-2)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Retry stopped prompt" title="Retry prompt">
+                          <RefreshIcon className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
                     {turn.failed ? (
                       <button type="button" onClick={() => retry(turn.id, turn.query)} disabled={isLoading} className="mt-4 rounded-[9px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold transition hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50">Try again</button>
                     ) : turn.showResults && turn.results.length > 0 ? (
