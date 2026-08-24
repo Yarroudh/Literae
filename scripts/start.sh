@@ -13,4 +13,4 @@ if [ "$offline" = "true" ]; then
 fi
 
 echo "Starting the complete Literae stack."
-exec docker compose up --build
+exec docker compose up --build -d
