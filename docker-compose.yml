@@ -24,8 +24,8 @@ services:
       ENVIRONMENT: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-literae}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-literae}
       CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-3000}"]'
-    ports:
-      - "${API_PORT:-8000}:8000"
+    expose:
+      - "8000"
     depends_on:
       database:
         condition: service_healthy
@@ -39,9 +39,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     restart: unless-stopped
+    environment:
+      OFFLINE: ${OFFLINE:-false}
+      API_INTERNAL_URL: http://api:8000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      SITE_USERNAME: ${SITE_USERNAME:-}
+      SITE_PASSWORD: ${SITE_PASSWORD:-}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

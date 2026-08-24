@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
+import hmac
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.graph import LangGraphResearchWorkflow, ResearchWorkflow
@@ -63,6 +65,26 @@ def create_app(
         redoc_url=None,
         lifespan=lifespan,
     )
+    internal_api_key = (
+        app_settings.internal_api_key.get_secret_value()
+        if app_settings.internal_api_key is not None
+        else ""
+    )
+    if app_settings.environment == "production" and not internal_api_key:
+        raise RuntimeError("INTERNAL_API_KEY is required in production.")
+
+    @application.middleware("http")
+    async def require_internal_api_key(request: Request, call_next):
+        if request.url.path == "/health" or app_settings.environment == "test":
+            return await call_next(request)
+        supplied_key = request.headers.get("x-internal-api-key", "")
+        if not internal_api_key or not hmac.compare_digest(supplied_key, internal_api_key):
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Unauthorized."},
+                headers={"WWW-Authenticate": "ApiKey"},
+            )
+        return await call_next(request)
     api_key = (
         app_settings.deepseek_api_key.get_secret_value()
         if app_settings.deepseek_api_key is not None

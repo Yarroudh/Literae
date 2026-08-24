@@ -83,6 +83,38 @@ async def test_health() -> None:
 
 
 @pytest.mark.asyncio
+async def test_internal_api_key_protects_non_health_routes() -> None:
+    app = create_app(
+        Settings(environment="development", internal_api_key="private-key"),
+        answer_generator=FakeAnswerGenerator(),
+        research_searcher=FakeResearchSearcher(),
+        query_interpreter=FakeQueryInterpreter(),
+        history_repository=InMemoryHistoryRepository(),
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        unauthorized = await client.get("/conversations")
+        authorized = await client.get(
+            "/conversations", headers={"x-internal-api-key": "private-key"}
+        )
+        health = await client.get("/health")
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
+    assert health.status_code == 200
+
+
+def test_production_requires_an_internal_api_key() -> None:
+    with pytest.raises(RuntimeError, match="INTERNAL_API_KEY"):
+        create_app(
+            Settings(
+                environment="production",
+                history_enabled=False,
+                internal_api_key=None,
+            )
+        )
+
+
+@pytest.mark.asyncio
 async def test_chat_returns_answer_and_research_results() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=make_app()), base_url="http://test"

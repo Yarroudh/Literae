@@ -56,7 +56,7 @@ export async function streamResearch(
   options: StreamOptions = {},
 ): Promise<ChatResponse> {
   const fetcher = options.fetcher ?? fetch;
-  const baseUrl = (options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+  const baseUrl = (options.baseUrl ?? "/api").replace(/\/$/, "");
   const controller = new AbortController();
   let timedOut = false;
   const cancelFromCaller = () => controller.abort();
@@ -121,7 +121,7 @@ export async function requestResearch(
   options: RequestOptions = {},
 ): Promise<ChatResponse> {
   const fetcher = options.fetcher ?? fetch;
-  const baseUrl = (options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+  const baseUrl = (options.baseUrl ?? "/api").replace(/\/$/, "");
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), options.timeoutMs ?? 120_000);
 
@@ -193,7 +193,7 @@ export async function deleteConversation(
 
 async function historyRequest(path: string, options: RequestOptions, method = "GET"): Promise<unknown> {
   const fetcher = options.fetcher ?? fetch;
-  const baseUrl = (options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+  const baseUrl = (options.baseUrl ?? "/api").replace(/\/$/, "");
   const response = await fetcher(`${baseUrl}${path}`, { method });
   if (!response.ok) throw new ChatApiError("server", "Conversation history could not be loaded.", response.status);
   if (response.status === 204) return undefined;

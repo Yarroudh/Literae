@@ -23,6 +23,25 @@ Literae is a conversational academic research assistant for discovering publicat
 researchers, analysing groups of papers, and producing reusable references. It combines OpenAlex,
 DeepSeek, LangGraph, the Model Context Protocol (MCP), Laminar tracing, and a Next.js interface in one reproducible Docker Compose environment.
 
+### Offline / coming-soon mode
+
+Set `OFFLINE=true` in the root `.env`, then start the project with:
+
+```sh
+./scripts/start.sh
+```
+
+Offline mode serves only a minimal development notice from the frontend. The launcher stops any
+existing API and database containers and starts the frontend without its dependencies. Set
+`OFFLINE=false` (or remove it) and run the same command to start the complete stack again.
+
+### Private deployment security
+
+The API is available only inside the Docker network and requires `INTERNAL_API_KEY` on every route
+except its container health check. Browser requests go through the authenticated Next.js proxy, so
+the internal key is never shipped to client JavaScript. Set distinct, long random values for
+`SITE_PASSWORD` and `INTERNAL_API_KEY` in `.env`; `SITE_USERNAME` controls the browser login name.
+
 > Results may be incomplete or contain metadata inherited from external scholarly records. Verify
 > important claims, authorship, publication details, and references against the original publication.
 

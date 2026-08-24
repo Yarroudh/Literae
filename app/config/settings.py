@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_name: str = "Literae API"
     app_version: str = "0.1.0"
     environment: str = "development"
+    internal_api_key: SecretStr | None = None
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     deepseek_api_key: SecretStr | None = None
     deepseek_model: str = "deepseek-v4-pro"

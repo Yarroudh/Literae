@@ -165,7 +165,7 @@ describe("streamResearch", () => {
     expect(statuses).toEqual(["Preparing the research context"]);
     expect(answer).toBe("Two relevant works were found.");
     expect(response).toEqual(successfulResponse);
-    expect(fetcher.mock.calls[0][0]).toBe("http://localhost:8000/chat/stream");
+    expect(fetcher.mock.calls[0][0]).toBe("/api/chat/stream");
   });
 
   it("distinguishes user cancellation from a timeout", async () => {
