@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export function OfflinePage() {
   return (
     <main className="offline-page">
@@ -5,10 +7,9 @@ export function OfflinePage() {
 
       <header className="offline-header">
         <div className="offline-brand">
-          <span className="offline-brand-mark" aria-hidden="true">L</span>
+          <Image src="/logo.png?v=3" alt="" width={34} height={34} priority unoptimized />
           <span>Literae</span>
         </div>
-        <div className="offline-status"><span />Building quietly</div>
       </header>
 
       <section className="offline-hero" aria-labelledby="offline-title">
@@ -48,10 +49,6 @@ export function OfflinePage() {
         </div>
       </section>
 
-      <footer className="offline-footer">
-        <span>© {new Date().getFullYear()} Literae</span>
-        <span>Built for curious minds</span>
-      </footer>
     </main>
   );
 }
